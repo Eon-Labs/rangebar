@@ -1,0 +1,79 @@
+milestone_id: 2025-09-09-range-bar-algorithm-correction
+commit_sha: 2ce5039ee597a4f7d3ead5a32d2e9da86d31fb0b
+timestamp: 2025-09-09T20:51:00Z
+summary: Fixed critical range bar algorithm bug from threshold-based to actual trade price closes
+
+lessons_learned:
+  challenges:
+    - description: Range bar close values were incorrectly set to calculated thresholds instead of actual breaching trade prices
+      impact: Created artificial price levels that never existed in market data, corrupting technical analysis and backtesting results
+    
+    - description: Synthetic data testing masked the algorithm flaw due to simplified price movement patterns
+      impact: Bug remained undetected until authentic market data revealed unrealistic close price behavior
+    
+    - description: High/low tracking logic failed to properly include open/close price extremes in bounds validation
+      impact: Range bars could violate basic OHLC constraints where high < max(open,close) or low > min(open,close)
+
+  failed_approaches:
+    - approach: Using threshold values directly as close prices when breach detected
+      reason_failed: Thresholds are calculated boundaries (±0.8% from open), not actual market prices that occurred
+      lesson: Close prices must represent real trade execution prices, never computed mathematical boundaries
+    
+    - approach: Testing algorithm correctness with synthetic linear price data
+      reason_failed: Synthetic data lacks market microstructure complexity that exposes edge cases
+      lesson: Authentic market data from CCXT USDⓈ-M Perpetuals is essential for algorithm validation
+    
+    - approach: Separate high/low updates from breach detection logic
+      reason_failed: Created race conditions where final high/low didn't include the breaching trade price
+      lesson: High/low must be updated before breach checking to ensure proper bounds validation
+
+  successful_solution:
+    approach: Set close price to actual breaching trade price and update high/low before breach detection
+    key_insights:
+      - Range bar close must always be the actual price that triggered the breach, not the threshold
+      - High/low tracking must include all trade prices including the final breaching price
+      - Mathematical validation essential: movement ≥0.8%, high ≥ max(open,close), low ≤ min(open,close)
+      - Visual verification through PNG charts reveals algorithm behavior patterns invisible in raw data
+      - CCXT USDⓈ-M Perpetuals provides authentic market microstructure for realistic testing
+
+  patterns_identified:
+    - pattern: Threshold-based close assignment creates non-existent price levels
+      context: Any algorithm that uses calculated boundaries as final prices instead of actual market data
+    
+    - pattern: Synthetic data testing provides false confidence in algorithm correctness
+      context: Financial algorithms requiring authentic market microstructure for proper validation
+    
+    - pattern: Visual verification reveals subtle algorithm flaws missed by numerical validation
+      context: Chart generation should be standard practice for any price-based algorithm validation
+
+  future_guidance:
+    - Always use actual trade prices for OHLC values, never calculated thresholds or synthetic prices
+    - Implement comprehensive bounds validation: high ≥ max(open,close), low ≤ min(open,close), movement ≥ threshold
+    - Test with authentic CCXT USDⓈ-M Perpetuals data to expose real market microstructure edge cases
+    - Generate visual charts for every algorithm change to catch behavioral anomalies
+    - Validate mathematical invariants at every bar close to prevent constraint violations
+    - Maintain strict separation between threshold calculations (triggers) and actual prices (OHLC values)
+
+technical_details:
+  architecture_changes: Updated Rust core range_bars.rs algorithm to use actual trade prices for close values
+  new_dependencies: 
+    - ccxt>=4.5.3 for authentic USDⓈ-M Perpetuals market data access
+    - matplotlib>=3.10.6 for algorithm validation through chart visualization
+  performance_impacts: No performance degradation - logic correction maintains same computational complexity
+  security_considerations: CCXT integration follows secure API access patterns with no private key exposure
+
+validation_results:
+  mathematical_constraints:
+    - movement_percentage: "All bars now show ≥0.8% price movement from open to close"
+    - high_bounds: "high ≥ max(open, close) constraint satisfied for all bars"  
+    - low_bounds: "low ≤ min(open, close) constraint satisfied for all bars"
+  
+  market_data_integration:
+    - data_source: "Binance USDⓈ-M Perpetuals via CCXT with authentic pricing"
+    - validation_method: "PNG chart generation showing proper range bar formation"
+    - sample_validation: "BTCUSDT 1-hour aggTrades data processed successfully"
+
+migration_notes:
+  breaking_changes: "Range bar close prices will differ from previous threshold-based implementation"
+  backward_compatibility: "Existing range bar data should be regenerated using corrected algorithm"
+  testing_requirements: "All downstream analysis should be revalidated with corrected range bars"
