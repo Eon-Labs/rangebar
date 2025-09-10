@@ -59,15 +59,35 @@ impl RangeBarProcessor {
                     current_bar = Some(RangeBarState::new(trade, self.threshold_bps));
                 }
                 Some(ref mut bar_state) => {
-                    // Update bar with current trade (CRITICAL: always update first)
-                    bar_state.bar.update_with_trade(trade);
+                    // CORRECT ALGORITHM: Always update high/low with actual prices first
+                    if trade.price > bar_state.bar.high {
+                        bar_state.bar.high = trade.price;
+                    }
+                    if trade.price < bar_state.bar.low {
+                        bar_state.bar.low = trade.price;
+                    }
                     
-                    // Check breach using FIXED thresholds computed from bar open
+                    // Check if this trade breaches the threshold
                     if bar_state.bar.is_breach(trade.price, bar_state.upper_threshold, bar_state.lower_threshold) {
-                        // Breach detected - close bar and prepare for new one
+                        // Breach detected - close bar with ACTUAL breaching trade price
+                        bar_state.bar.close = trade.price; // Actual price, not threshold!
+                        bar_state.bar.volume += trade.quantity;
+                        bar_state.bar.trade_count += 1;
+                        bar_state.bar.close_time = trade.timestamp;
+                        
+                        // Validation: Ensure high/low include open/close extremes
+                        debug_assert!(bar_state.bar.high >= bar_state.bar.open.max(bar_state.bar.close));
+                        debug_assert!(bar_state.bar.low <= bar_state.bar.open.min(bar_state.bar.close));
+                        
                         bars.push(bar_state.bar.clone());
                         current_bar = None;
                         defer_open = true; // Next trade will open new bar
+                    } else {
+                        // No breach: normal update (excluding high/low which were already updated)
+                        bar_state.bar.close = trade.price;
+                        bar_state.bar.volume += trade.quantity;
+                        bar_state.bar.trade_count += 1;
+                        bar_state.bar.close_time = trade.timestamp;
                     }
                 }
             }
