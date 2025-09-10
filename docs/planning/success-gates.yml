@@ -1,0 +1,174 @@
+# Success Gate Definitions
+gates:
+  SG1:
+    name: Foundation Ready
+    description: Documentation and build system configured
+    criteria:
+      - documentation_structure_complete: true
+      - rust_build_system_configured: true
+      - pyproject_toml_updated: true
+      - directory_structure_created: true
+    validation:
+      - command: "maturin build"
+        expected: "successful build"
+      - command: "cargo check"
+        expected: "no errors"
+      - file_exists: "CLAUDE.md"
+      - file_exists: "Cargo.toml"
+      - file_exists: "docs/planning/implementation-plan.yml"
+    status: in_progress
+
+  SG2:
+    name: Data Pipeline Validated
+    description: UM futures data acquisition and processing working
+    criteria:
+      - um_futures_fetcher_working: true
+      - data_schema_validated: true
+      - parquet_conversion_tested: true
+      - binance_historical_data_integrated: true
+    validation:
+      - test: "Fetch 1 day of BTCUSDT UM futures aggTrades"
+      - test: "Verify schema matches specification"
+      - test: "Convert to Parquet and validate integrity"
+      - test: "Checksum validation passes"
+    data_requirements:
+      - asset_class: "um"  # USD-M Futures only
+      - data_type: "aggTrades"
+      - required_fields: [a, p, q, f, l, T, m]
+      - sorting: "(timestamp, aggTradeId) ascending"
+    status: pending
+
+  SG3:
+    name: Rust Core Operational
+    description: Core range bar algorithm implemented and tested
+    criteria:
+      - algorithm_implemented: true
+      - python_bindings_working: true
+      - fixed_point_arithmetic_accurate: true
+      - non_lookahead_verified: true
+    validation:
+      - test: "Process sample dataset without errors"
+      - test: "Verify no lookahead bias"
+      - test: "Compare with reference implementation"
+      - test: "Handle edge cases correctly"
+    performance:
+      - benchmark: "1M ticks < 100ms"
+      - benchmark: "Memory usage O(1) per bar"
+      - benchmark: "Deterministic results across runs"
+    algorithm_validation:
+      - threshold_calculation: "From bar OPEN only"
+      - breach_tick_handling: "Included in closing bar"
+      - defer_open_mechanism: "Next tick opens new bar"
+    status: pending
+
+  SG4:
+    name: Quality Assured
+    description: Comprehensive testing and validation complete
+    criteria:
+      - test_coverage: ">= 95%"
+      - edge_cases_handled: true
+      - performance_targets_met: true
+      - property_based_tests_passing: true
+    validation:
+      - run: "pytest tests/ --cov=rangebar --cov-report=term-missing"
+        expected: "coverage >= 95%"
+      - run: "cargo test"
+        expected: "all tests pass"
+      - run: "python -m pytest benchmarks/"
+        expected: "performance targets met"
+    test_categories:
+      - non_lookahead_tests: "Verify algorithm correctness"
+      - edge_case_tests: "Handle boundary conditions"
+      - performance_tests: "Meet speed requirements"
+      - data_integrity_tests: "Validate input/output"
+    status: pending
+
+  SG5:
+    name: Production Ready
+    description: Fully functional system ready for deployment
+    criteria:
+      - cli_functional: true
+      - documentation_complete: true
+      - real_data_tested: true
+      - parallel_processing_working: true
+    validation:
+      - test: "Process 1 year of BTCUSDT data"
+      - test: "Multi-symbol parallel processing"
+      - test: "Memory usage < 1GB for 1B ticks"
+      - test: "CLI handles all use cases"
+    production_requirements:
+      - data_throughput: ">1M ticks/second"
+      - memory_efficiency: "Streaming processing"
+      - error_handling: "Graceful failure modes"
+      - logging: "Comprehensive debug info"
+    status: pending
+
+# Validation Matrix for Critical Properties
+validation_matrix:
+  non_lookahead_tests:
+    threshold_from_open_only:
+      description: "Thresholds computed only from bar's open price"
+      test_method: "Compare threshold calculation before/after tick inclusion"
+      status: "pending"
+    
+    breach_tick_included:
+      description: "Breach-causing tick included in closing bar"
+      test_method: "Verify bar.close == breach_tick.price"
+      status: "pending"
+    
+    defer_open_mechanism:
+      description: "Next tick after breach opens new bar"
+      test_method: "Verify new_bar.open == next_tick.price"
+      status: "pending"
+    
+    no_future_knowledge:
+      description: "Algorithm uses only historical data"
+      test_method: "Process partial dataset, verify same results"
+      status: "pending"
+
+  data_integrity_tests:
+    um_futures_only:
+      description: "Only UM futures aggTrades processed"
+      test_method: "Verify asset_class='um' in data source"
+      status: "pending"
+    
+    schema_compliance:
+      description: "All required fields present and correct type"
+      test_method: "Schema validation against UM futures spec"
+      status: "pending"
+    
+    timestamp_ordering:
+      description: "Data sorted by (timestamp, aggTradeId)"
+      test_method: "Verify monotonic ordering"
+      status: "pending"
+    
+    checksum_validation:
+      description: "Downloaded data integrity verified"
+      test_method: "SHA256 checksum match"
+      status: "pending"
+
+  performance_tests:
+    rust_vs_python_speedup:
+      description: "Rust implementation significantly faster"
+      target: ">100x speedup vs Python+Decimal"
+      test_method: "Benchmark identical datasets"
+      status: "pending"
+    
+    memory_efficiency:
+      description: "O(1) memory per bar, streaming processing"
+      target: "<1GB for 1B ticks"
+      test_method: "Memory profiling during processing"
+      status: "pending"
+    
+    parallel_scaling:
+      description: "Multi-symbol processing scales with cores"
+      target: "Linear scaling up to core count"
+      test_method: "Process multiple symbols concurrently"
+      status: "pending"
+
+# Gate Dependencies
+dependencies:
+  SG2: [SG1]  # Data pipeline requires foundation
+  SG3: [SG2]  # Rust core requires data pipeline  
+  SG4: [SG3]  # Quality assurance requires core
+  SG5: [SG4]  # Production ready requires quality

@@ -1,0 +1,35 @@
+[package]
+name = "rangebar-rust"
+version = "0.4.0"
+edition = "2024"
+description = "High-performance range bar construction with aligned JSON/Arrow formats for seamless Python integration"
+authors = ["Terry Li <terry@eonlabs.com>"]
+license = "MIT"
+homepage = "https://github.com/eonlabs/rangebar"
+repository = "https://github.com/eonlabs/rangebar"
+documentation = "https://github.com/eonlabs/rangebar#readme"
+
+[lib]
+name = "rangebar_rust"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.26", features = ["extension-module"] }
+numpy = "0.26"
+rayon = "1.11"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+
+[profile.release]
+lto = true              # Link-time optimization for better performance
+codegen-units = 1       # Single codegen unit for better optimization  
+overflow-checks = false # Disable overflow checks in release for speed
+panic = "abort"         # Smaller binary size
+
+[profile.dev]
+overflow-checks = true  # Keep overflow checks in debug builds
+
+[features]
+default = []
+simd = []              # Optional SIMD optimizations

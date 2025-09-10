@@ -1,0 +1,18 @@
+include README.md
+include LICENSE
+include pyproject.toml
+include Cargo.toml
+include Cargo.lock
+
+# Include source files
+recursive-include src *.py
+recursive-include src *.rs
+
+# Include validation script
+include validate_algorithm_parity.py
+
+# Exclude test and build files
+exclude test_*.py
+recursive-exclude target *
+recursive-exclude .venv *
+exclude *.csv *.parquet *.json
