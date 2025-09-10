@@ -211,7 +211,7 @@ Tested with latest 2025 dependencies on 1M trade dataset:
 
 ```bash
 # Clone repository
-git clone https://github.com/eonlabs/rangebar.git
+git clone https://github.com/Eon-Labs/rangebar.git
 cd rangebar
 
 # Install dependencies (requires Python 3.13+)
@@ -255,5 +255,5 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 ## Support
 
-- Issues: [GitHub Issues](https://github.com/eonlabs/rangebar/issues)
+- Issues: [GitHub Issues](https://github.com/Eon-Labs/rangebar/issues)
 - Documentation: See CLI help `rangebar --help`

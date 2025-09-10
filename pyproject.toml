@@ -33,9 +33,9 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/eonlabs/rangebar"
-"Repository" = "https://github.com/eonlabs/rangebar"
-"Issues" = "https://github.com/eonlabs/rangebar/issues"
+"Homepage" = "https://github.com/Eon-Labs/rangebar"
+"Repository" = "https://github.com/Eon-Labs/rangebar"
+"Issues" = "https://github.com/Eon-Labs/rangebar/issues"
 
 [project.optional-dependencies]
 test = [

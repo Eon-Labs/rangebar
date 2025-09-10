@@ -5,9 +5,9 @@ edition = "2024"
 description = "High-performance range bar construction with aligned JSON/Arrow formats for seamless Python integration"
 authors = ["Terry Li <terry@eonlabs.com>"]
 license = "MIT"
-homepage = "https://github.com/eonlabs/rangebar"
-repository = "https://github.com/eonlabs/rangebar"
-documentation = "https://github.com/eonlabs/rangebar#readme"
+homepage = "https://github.com/Eon-Labs/rangebar"
+repository = "https://github.com/Eon-Labs/rangebar"
+documentation = "https://github.com/Eon-Labs/rangebar#readme"
 
 [lib]
 name = "rangebar_rust"

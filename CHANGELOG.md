@@ -201,6 +201,6 @@ All performance claims verified through independent testing:
 - PyO3 0.22.x for Python-Rust bindings
 - Modern Python data stack (numpy, pandas, pyarrow)
 
-[0.2.0]: https://github.com/eonlabs/rangebar/compare/v0.1.1...v0.2.0
-[0.1.1]: https://github.com/eonlabs/rangebar/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/eonlabs/rangebar/releases/tag/v0.1.0
+[0.2.0]: https://github.com/Eon-Labs/rangebar/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/Eon-Labs/rangebar/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/Eon-Labs/rangebar/releases/tag/v0.1.0

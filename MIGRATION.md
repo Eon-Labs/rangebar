@@ -354,4 +354,4 @@ If you encounter issues during migration:
 1. Check your Python version: `python --version`
 2. Verify dependencies: `uv tree` or `pip list`
 3. Create a fresh environment: `uv sync --reinstall`
-4. Report issues: [GitHub Issues](https://github.com/eonlabs/rangebar/issues)
+4. Report issues: [GitHub Issues](https://github.com/Eon-Labs/rangebar/issues)

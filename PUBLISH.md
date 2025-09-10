@@ -166,6 +166,6 @@ For future releases:
 
 ## Support
 
-- Package issues: [GitHub Issues](https://github.com/eonlabs/rangebar/issues)
+- Package issues: [GitHub Issues](https://github.com/Eon-Labs/rangebar/issues)
 - PyPI project page: https://pypi.org/project/rangebar/
 - TestPyPI page: https://test.pypi.org/project/rangebar/
