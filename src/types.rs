@@ -1,9 +1,10 @@
 //! Type definitions for range bar processing
 
 use crate::fixed_point::FixedPoint;
+use serde::{Deserialize, Serialize};
 
 /// Aggregate trade data from Binance UM Futures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AggTrade {
     /// Aggregate trade ID  
     pub agg_trade_id: i64,
@@ -37,7 +38,7 @@ impl AggTrade {
 }
 
 /// Range bar with OHLCV data
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RangeBar {
     /// Opening timestamp (first trade)
     pub open_time: i64,

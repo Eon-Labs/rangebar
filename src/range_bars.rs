@@ -6,6 +6,7 @@
 use crate::fixed_point::FixedPoint;
 use crate::types::{AggTrade, RangeBar};
 use thiserror::Error;
+#[cfg(feature = "python")]
 use pyo3::prelude::*;
 
 /// Range bar processor with non-lookahead bias guarantee
@@ -22,6 +23,34 @@ impl RangeBarProcessor {
     /// * `threshold_bps` - Threshold in basis points (8000 = 0.8%)
     pub fn new(threshold_bps: u32) -> Self {
         Self { threshold_bps }
+    }
+    
+    /// Process a single trade and return completed bar if any
+    /// 
+    /// # Arguments
+    /// 
+    /// * `trade` - Single aggregated trade to process
+    /// 
+    /// # Returns
+    /// 
+    /// `Some(RangeBar)` if a bar was completed, `None` otherwise
+    pub fn process_single_trade(&mut self, trade: AggTrade) -> Result<Option<RangeBar>, ProcessingError> {
+        // Create single-element slice and process
+        let trades = vec![trade];
+        let mut bars = self.process_trades(&trades)?;
+        
+        // Return the last completed bar if any
+        if bars.is_empty() {
+            Ok(None)
+        } else {
+            Ok(bars.pop())
+        }
+    }
+    
+    /// Get any incomplete bar currently being processed
+    pub fn get_incomplete_bar(&self) -> Option<RangeBar> {
+        // This would need internal state tracking - simplified for now
+        None
     }
     
     /// Process trades into range bars
@@ -71,7 +100,7 @@ impl RangeBarProcessor {
                     if bar_state.bar.is_breach(trade.price, bar_state.upper_threshold, bar_state.lower_threshold) {
                         // Breach detected - close bar with ACTUAL breaching trade price
                         bar_state.bar.close = trade.price; // Actual price, not threshold!
-                        bar_state.bar.volume += trade.quantity;
+                        bar_state.bar.volume = FixedPoint(bar_state.bar.volume.0 + trade.volume.0);
                         bar_state.bar.trade_count += 1;
                         bar_state.bar.close_time = trade.timestamp;
                         
@@ -85,7 +114,7 @@ impl RangeBarProcessor {
                     } else {
                         // No breach: normal update (excluding high/low which were already updated)
                         bar_state.bar.close = trade.price;
-                        bar_state.bar.volume += trade.quantity;
+                        bar_state.bar.volume = FixedPoint(bar_state.bar.volume.0 + trade.volume.0);
                         bar_state.bar.trade_count += 1;
                         bar_state.bar.close_time = trade.timestamp;
                     }
@@ -171,6 +200,7 @@ pub enum ProcessingError {
     InvalidThreshold { threshold_bps: u32 },
 }
 
+#[cfg(feature = "python")]
 impl From<ProcessingError> for PyErr {
     fn from(err: ProcessingError) -> PyErr {
         match err {

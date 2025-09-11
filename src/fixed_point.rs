@@ -2,6 +2,8 @@
 
 use std::fmt;
 use std::str::FromStr;
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "python")]
 use pyo3::prelude::*;
 
 /// Scale factor for 8 decimal places (100,000,000)
@@ -18,7 +20,7 @@ pub const BASIS_POINTS_SCALE: u32 = 1_000_000;
 /// Example:
 /// - 50000.12345678 → 5000012345678
 /// - 1.5 → 150000000
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct FixedPoint(pub i64);
 
 impl FixedPoint {
@@ -145,6 +147,7 @@ impl fmt::Display for FixedPointError {
 
 impl std::error::Error for FixedPointError {}
 
+#[cfg(feature = "python")]
 impl From<FixedPointError> for PyErr {
     fn from(err: FixedPointError) -> PyErr {
         match err {
