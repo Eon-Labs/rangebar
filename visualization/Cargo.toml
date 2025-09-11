@@ -1,0 +1,43 @@
+[package]
+name = "rangebar-visualization"
+version = "0.1.0"
+edition = "2021"
+description = "Range bar visualization and charting utilities for rangebar data"
+authors = ["Terry Li <terry@eonlabs.com>"]
+license = "MIT"
+
+[dependencies]
+# Core plotting and visualization
+plotters = "0.3"
+egui = { version = "0.28", optional = true }
+eframe = { version = "0.28", optional = true }
+
+# Data handling
+# polars = { version = "0.42", features = ["lazy", "temporal", "strings"] }  # Temporarily disabled
+# plotlars = "0.10"  # Temporarily disabled
+
+# Utilities
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Image output
+image = "0.25"
+
+# Range bar core data structures (local dependency)
+# rangebar = { path = ".." }  # Temporarily commented out to avoid circular dependency
+
+[dev-dependencies]
+tempfile = "3.0"
+
+[[bin]]
+name = "generate_sample_charts"
+path = "src/bin/generator.rs"
+
+[features]
+default = ["png_export"]
+png_export = []
+interactive = ["egui", "eframe"]
+web = ["eframe/web_screen_reader"]
