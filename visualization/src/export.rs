@@ -203,11 +203,12 @@ impl PngExporter {
     }
     
     /// Add statistical overlay to the chart
+    #[allow(dead_code)] // Method is prepared for future use
     fn add_statistics_overlay<DB: DrawingBackend, CT: CoordTranslate>(
         &self,
-        chart: &mut ChartContext<DB, CT>,
+        _chart: &mut ChartContext<DB, CT>,
         series: &RangeBarSeries,
-        config: &ExportConfig,
+        _config: &ExportConfig,
     ) -> std::result::Result<(), Box<dyn std::error::Error>> {
         let stats = series.statistics();
         

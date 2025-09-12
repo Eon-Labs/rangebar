@@ -6,9 +6,7 @@
 #[cfg(feature = "statistics")]
 use quantiles::ckms::CKMS;
 #[cfg(feature = "statistics")]
-use rayon::prelude::*;
-#[cfg(feature = "statistics")]
-use statrs::statistics::{OrderStatistics, Statistics as StatrsStatistics};
+use statrs::statistics::Statistics as StatrsStatistics;
 
 #[cfg(feature = "data-integrity")]
 use crc32fast::Hasher as Crc32Hasher;
@@ -1715,7 +1713,7 @@ impl StatisticalEngine {
 
     // Implementation stubs - would be fully implemented with actual statistical computations
     fn compute_market_data_stats(
-        &self,
+        &mut self,
         trades: &[AggTrade],
     ) -> Result<MarketDataStats, Box<dyn std::error::Error + Send + Sync>> {
         // This would contain the full implementation using statrs, quantiles, etc.
@@ -1739,6 +1737,37 @@ impl StatisticalEngine {
             prices.iter().map(|p| (p - mean_price).powi(2)).sum::<f64>() / prices.len() as f64;
         let std_dev = variance.sqrt();
 
+        // Use quantile estimator for percentile calculations
+        #[cfg(feature = "statistics")]
+        let median = if let Some(ref mut estimator) = self.quantile_estimator.as_mut() {
+            for &price in &prices {
+                estimator.insert(price);
+            }
+            estimator.query(0.5).map(|(_count, value)| value).unwrap_or(mean_price)
+        } else {
+            // Fallback to simple median calculation
+            let mut sorted_prices = prices.clone();
+            sorted_prices.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let mid = sorted_prices.len() / 2;
+            if sorted_prices.len() % 2 == 0 {
+                (sorted_prices[mid - 1] + sorted_prices[mid]) / 2.0
+            } else {
+                sorted_prices[mid]
+            }
+        };
+
+        #[cfg(not(feature = "statistics"))]
+        let median = {
+            let mut sorted_prices = prices.clone();
+            sorted_prices.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let mid = sorted_prices.len() / 2;
+            if sorted_prices.len() % 2 == 0 {
+                (sorted_prices[mid - 1] + sorted_prices[mid]) / 2.0
+            } else {
+                sorted_prices[mid]
+            }
+        };
+
         Ok(MarketDataStats {
             total_trades,
             total_volume,
@@ -1757,7 +1786,7 @@ impl StatisticalEngine {
                 min: min_price,
                 max: max_price,
                 mean: mean_price,
-                median: 0.0, // Would calculate using quantiles crate
+                median,
                 std_dev,
                 skewness: 0.0, // Would calculate using statrs
                 kurtosis: 0.0, // Would calculate using statrs

@@ -2,18 +2,17 @@
 
 use crate::data::RangeBarData;
 use crate::styles::RangeBarStyle;
-use crate::errors::Result;
 
 /// Interactive range bar chart widget
 pub struct InteractiveRangeChart {
     /// Chart data
     data: Vec<RangeBarData>,
-    /// Visual style
-    style: RangeBarStyle,
-    /// Current zoom level
-    zoom: f32,
-    /// Current pan offset
-    pan_offset: (f32, f32),
+    /// Visual style (unused for now)
+    _style: RangeBarStyle,
+    /// Current zoom level (unused for now)
+    _zoom: f32,
+    /// Current pan offset (unused for now)
+    _pan_offset: (f32, f32),
 }
 
 impl InteractiveRangeChart {
@@ -21,9 +20,9 @@ impl InteractiveRangeChart {
     pub fn new(data: Vec<RangeBarData>) -> Self {
         Self {
             data,
-            style: RangeBarStyle::default(),
-            zoom: 1.0,
-            pan_offset: (0.0, 0.0),
+            _style: RangeBarStyle::default(),
+            _zoom: 1.0,
+            _pan_offset: (0.0, 0.0),
         }
     }
     

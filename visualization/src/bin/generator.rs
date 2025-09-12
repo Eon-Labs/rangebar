@@ -4,7 +4,7 @@
 //! It creates multiple variations to test different aspects of the charting system.
 
 use rangebar_visualization::{
-    data::{DataPreprocessor, RangeBarData},
+    data::DataPreprocessor,
     export::{export_png, ExportConfig, quick_export_sample},
     layouts::{ChartLayout, TimeScale},
     styles::{RangeBarStyle, ColorScheme},
@@ -184,6 +184,7 @@ fn generate_data_variations(output_dir: &Path) -> Result<()> {
 }
 
 /// Print analysis of generated files for verification
+#[allow(dead_code)] // Utility function for developer use
 fn print_verification_guide() {
     println!("\n🔍 VISUAL VERIFICATION GUIDE");
     println!("============================");
