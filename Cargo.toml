@@ -13,6 +13,10 @@ documentation = "https://github.com/Eon-Labs/rangebar#readme"
 name = "rangebar"
 path = "src/bin/rangebar_export.rs"
 
+[[bench]]
+name = "rangebar_bench"
+harness = false
+
 [dependencies]
 rayon = "1.11"
 serde = { version = "1.0", features = ["derive"] }
@@ -30,29 +34,26 @@ chrono = { version = "0.4", features = ["serde"] }
 # SOTA Statistical Analysis Crates
 statrs = { version = "0.17", optional = true }                           # Core statistical distributions and functions
 quantiles = { version = "0.7", optional = true }                         # Streaming quantile estimation (CKMS, T-Digest)
-polars = { version = "0.35", features = ["lazy", "temporal", "strings", "parquet", "csv"], optional = true }
+polars = { version = "0.49", features = ["lazy", "temporal", "strings", "parquet", "csv"], optional = true }
 nalgebra = { version = "0.33", optional = true }                         # Linear algebra backend for complex calculations
-peroxide = { version = "0.37", features = ["O3"], optional = true }  # Scientific computing with BLAS optimizations
-
 # Financial Time Series Analysis
-augurs = { version = "0.6", features = ["outlier"], optional = true }  # Time series forecasting and anomaly detection
 
 # Data Validation and Schema
 sha2 = { version = "0.10", optional = true }                             # Cryptographic hashing for data integrity
 crc32fast = { version = "1.4", optional = true }                         # Fast CRC32 checksums
 md5 = { version = "0.7", optional = true }                               # MD5 checksums for compatibility
 
-# Performance and Memory Optimization
-hashbrown = { version = "0.14", optional = true }                        # Fast HashMap implementation
-smallvec = { version = "1.13", optional = true }                         # Stack-allocated vectors for small collections
-ahash = { version = "0.8", optional = true }                             # High-performance hashing
+# Performance and Memory Optimization (unused dependencies removed)
 
 # Arrow and Parquet Support (Future Implementation)
 arrow = { version = "53.0", optional = true }
 parquet = { version = "53.0", optional = true }
 
 # Python bindings (optional)
-pyo3 = { version = "0.22", features = ["extension-module"], optional = true }
+pyo3 = { version = "0.26", features = ["extension-module"], optional = true }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [profile.release]
 lto = true              # Link-time optimization for better performance
@@ -68,13 +69,11 @@ default = ["statistics", "data-integrity"]
 simd = []                                # Optional SIMD optimizations
 
 # Feature groups for modular compilation
-statistics = ["dep:statrs", "dep:quantiles", "dep:polars", "dep:nalgebra", "dep:peroxide"]
-time-series = ["dep:augurs", "statistics"]
+statistics = ["dep:statrs", "dep:quantiles", "dep:polars", "dep:nalgebra"]
 arrow-support = ["dep:arrow", "dep:parquet"]
 data-integrity = ["dep:sha2", "dep:crc32fast", "dep:md5"]
-performance-optimized = ["dep:hashbrown", "dep:smallvec", "dep:ahash"]
 
 # Combined feature sets
 python = ["dep:pyo3"]
-full-analytics = ["statistics", "time-series", "data-integrity", "performance-optimized"]
+full-analytics = ["statistics", "data-integrity"]
 production = ["full-analytics", "arrow-support"]

@@ -1,56 +1,51 @@
 //! Comprehensive financial statistics and market microstructure analysis
-//! 
+//!
 //! This module implements state-of-the-art statistical analysis for both raw market data
 //! and range bar outputs using high-performance Rust crates for financial time series analysis.
 
 #[cfg(feature = "statistics")]
-use statrs::statistics::{Statistics as StatrsStatistics, OrderStatistics};
-#[cfg(feature = "statistics")]
-use statrs::distribution::{Normal, Continuous, Gamma, StudentsT};
-#[cfg(feature = "statistics")]
 use quantiles::ckms::CKMS;
 #[cfg(feature = "statistics")]
-use nalgebra::{DVector, DMatrix};
-#[cfg(feature = "statistics")]
 use rayon::prelude::*;
+#[cfg(feature = "statistics")]
+use statrs::statistics::{OrderStatistics, Statistics as StatrsStatistics};
 
-use serde::{Deserialize, Serialize};
-#[cfg(feature = "data-integrity")]
-use sha2::{Sha256, Digest};
 #[cfg(feature = "data-integrity")]
 use crc32fast::Hasher as Crc32Hasher;
 #[cfg(feature = "data-integrity")]
 use md5;
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "data-integrity")]
+use sha2::{Digest, Sha256};
 
-use std::collections::HashMap;
-use chrono::{DateTime, Utc};
-use crate::fixed_point::FixedPoint;
 use crate::types::{AggTrade, RangeBar};
+use chrono::{DateTime, Utc};
+use std::collections::HashMap;
 
 /// Top-level comprehensive metadata structure for range bar analysis
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RangeBarMetadata {
     /// Schema version for compatibility management
     pub schema_version: String,
-    
+
     /// Dataset identification and provenance
     pub dataset: DatasetInfo,
-    
+
     /// Algorithm and processing configuration
     pub algorithm: AlgorithmConfig,
-    
+
     /// Statistical summaries and quality metrics
     pub statistics: Statistics,
-    
+
     /// Performance and system metrics
     pub performance: PerformanceMetrics,
-    
+
     /// Data quality and validation results
     pub quality: QualityMetrics,
-    
+
     /// Format-specific metadata
     pub formats: FormatMetadata,
-    
+
     /// Extensible metadata for future fields
     #[serde(flatten)]
     pub extensions: HashMap<String, serde_json::Value>,
@@ -61,22 +56,22 @@ pub struct RangeBarMetadata {
 pub struct DatasetInfo {
     /// Unique dataset identifier
     pub id: String,
-    
+
     /// Human-readable title
     pub title: String,
-    
+
     /// Dataset description following DCAT standards
     pub description: String,
-    
+
     /// Financial instrument details
     pub instrument: InstrumentInfo,
-    
+
     /// Temporal coverage information
     pub temporal: TemporalCoverage,
-    
+
     /// Data provenance and lineage
     pub provenance: ProvenanceInfo,
-    
+
     /// Access and usage rights
     pub rights: AccessRights,
 }
@@ -85,22 +80,22 @@ pub struct DatasetInfo {
 pub struct InstrumentInfo {
     /// Symbol (e.g., "BTCUSDT")
     pub symbol: String,
-    
+
     /// Instrument type following FIX protocol standards
     pub instrument_type: String, // "crypto_perpetual_future"
-    
+
     /// Market venue
     pub venue: String, // "binance_um_futures"
-    
+
     /// Settlement currency
     pub settlement_currency: String, // "USDT"
-    
+
     /// Tick size for price precision
     pub tick_size: f64,
-    
+
     /// Lot size for volume precision
     pub lot_size: f64,
-    
+
     /// Market type identifier
     pub market_type: String, // "um", "cm", "spot"
 }
@@ -109,19 +104,19 @@ pub struct InstrumentInfo {
 pub struct TemporalCoverage {
     /// Start date (ISO 8601)
     pub start_date: String,
-    
+
     /// End date (ISO 8601)
     pub end_date: String,
-    
+
     /// Timezone information
     pub timezone: String, // "UTC"
-    
+
     /// Data frequency/resolution
     pub frequency: String, // "tick" or "aggTrade"
-    
+
     /// Market hours coverage
     pub market_hours: String, // "24/7" for crypto
-    
+
     /// Actual data coverage (may have gaps)
     pub coverage_pct: f64,
 }
@@ -130,19 +125,19 @@ pub struct TemporalCoverage {
 pub struct ProvenanceInfo {
     /// Original data source
     pub source: String, // "binance.vision"
-    
+
     /// Data collection method
     pub collection_method: String, // "http_download"
-    
+
     /// Data processing pipeline version
     pub pipeline_version: String,
-    
+
     /// Processing timestamp
     pub processed_at: DateTime<Utc>,
-    
+
     /// Data lineage information
     pub lineage: Vec<ProcessingStep>,
-    
+
     /// Git commit hash for reproducibility
     pub commit_hash: Option<String>,
 }
@@ -161,13 +156,13 @@ pub struct ProcessingStep {
 pub struct AccessRights {
     /// Data license
     pub license: String,
-    
+
     /// Usage restrictions
     pub usage_restrictions: Vec<String>,
-    
+
     /// Attribution requirements
     pub attribution: String,
-    
+
     /// Commercial use allowed
     pub commercial_use: bool,
 }
@@ -176,14 +171,14 @@ pub struct AccessRights {
 pub struct AlgorithmConfig {
     /// Algorithm name and version
     pub algorithm: String, // "non_lookahead_range_bars"
-    pub version: String,   // "v1.2.0"
-    
+    pub version: String, // "v1.2.0"
+
     /// Core algorithm parameters
     pub parameters: AlgorithmParameters,
-    
+
     /// Validation and compliance flags
     pub compliance: ComplianceInfo,
-    
+
     /// Future algorithm extensions
     #[serde(flatten)]
     pub extensions: HashMap<String, serde_json::Value>,
@@ -193,22 +188,22 @@ pub struct AlgorithmConfig {
 pub struct AlgorithmParameters {
     /// Range threshold percentage
     pub threshold_pct: f64,
-    
+
     /// Threshold in basis points for precision
     pub threshold_bps: u32,
-    
+
     /// Fixed-point precision (decimal places)
     pub fixed_point_precision: u8, // 8 for 1e-8 precision
-    
+
     /// Non-lookahead guarantee flag
     pub non_lookahead: bool, // always true
-    
+
     /// Breach inclusion policy
     pub breach_inclusion: String, // "include_breach_trade"
-    
+
     /// Minimum bar duration (if any)
     pub min_bar_duration_ms: Option<u64>,
-    
+
     /// Maximum bar duration (if any)
     pub max_bar_duration_ms: Option<u64>,
 }
@@ -217,16 +212,16 @@ pub struct AlgorithmParameters {
 pub struct ComplianceInfo {
     /// Non-lookahead bias verification
     pub non_lookahead_verified: bool,
-    
+
     /// FIX protocol compliance level
     pub fix_compliance: Option<String>,
-    
+
     /// Academic reproducibility standards
     pub reproducible: bool,
-    
+
     /// Audit trail availability
     pub audit_trail: bool,
-    
+
     /// Regulatory compliance flags
     pub regulatory_compliance: Vec<String>,
 }
@@ -236,19 +231,19 @@ pub struct ComplianceInfo {
 pub struct Statistics {
     /// Market data statistics (raw input)
     pub market_data: MarketDataStats,
-    
+
     /// Range bar specific statistics
     pub range_bars: RangeBarStats,
-    
+
     /// Distribution analysis
     pub distributions: DistributionStats,
-    
+
     /// Time series characteristics
     pub time_series: TimeSeriesStats,
-    
+
     /// Advanced financial metrics
     pub financial_metrics: FinancialMetrics,
-    
+
     /// Cross-format validation results
     pub validation: ValidationStats,
 }
@@ -260,19 +255,19 @@ pub struct MarketDataStats {
     pub total_volume: f64,
     pub total_turnover: f64,
     pub data_span_seconds: f64,
-    
+
     /// Price statistics
     pub price_stats: PriceStatistics,
-    
+
     /// Volume statistics  
     pub volume_stats: VolumeStatistics,
-    
+
     /// Temporal statistics
     pub temporal_stats: TemporalStatistics,
-    
+
     /// Trade frequency analysis
     pub frequency_analysis: FrequencyAnalysis,
-    
+
     /// Microstructure metrics
     pub microstructure: MicrostructureMetrics,
 }
@@ -287,10 +282,10 @@ pub struct PriceStatistics {
     pub skewness: f64,
     pub kurtosis: f64,
     pub percentiles: Percentiles,
-    
+
     /// Price increment analysis
     pub tick_analysis: TickAnalysis,
-    
+
     /// Returns analysis
     pub returns: ReturnsAnalysis,
 }
@@ -311,13 +306,13 @@ pub struct Percentiles {
 pub struct TickAnalysis {
     /// Minimum observed tick size
     pub min_tick_size: f64,
-    
+
     /// Effective tick size (most common increment)
     pub effective_tick_size: f64,
-    
+
     /// Tick size distribution
     pub tick_size_histogram: Vec<(f64, u64)>,
-    
+
     /// Decimal places analysis
     pub decimal_precision: u8,
 }
@@ -326,13 +321,13 @@ pub struct TickAnalysis {
 pub struct ReturnsAnalysis {
     /// Log returns statistics
     pub log_returns: BasicStats,
-    
+
     /// Simple returns statistics
     pub simple_returns: BasicStats,
-    
+
     /// Autocorrelation analysis
     pub autocorrelation: Vec<f64>, // First 10 lags
-    
+
     /// Volatility clustering test
     pub volatility_clustering: f64,
 }
@@ -355,10 +350,10 @@ pub struct VolumeStatistics {
     pub median: f64,
     pub std_dev: f64,
     pub coefficient_variation: f64,
-    
+
     /// Volume concentration analysis
     pub concentration: VolumeConcentration,
-    
+
     /// Volume-price relationship
     pub volume_price_correlation: f64,
 }
@@ -367,15 +362,15 @@ pub struct VolumeStatistics {
 pub struct VolumeConcentration {
     /// Gini coefficient for trade size inequality
     pub gini_coefficient: f64,
-    
+
     /// Top percentile volume shares
     pub top_1pct_volume_share: f64,
     pub top_5pct_volume_share: f64,
     pub top_10pct_volume_share: f64,
-    
+
     /// Herfindahl index for concentration
     pub herfindahl_index: f64,
-    
+
     /// Pareto analysis
     pub pareto_tail_index: Option<f64>,
 }
@@ -385,15 +380,15 @@ pub struct TemporalStatistics {
     /// Sampling characteristics
     pub mean_sampling_frequency_hz: f64,
     pub median_inter_arrival_time_ms: f64,
-    
+
     /// Gap analysis
     pub gaps_detected: u32,
     pub largest_gap_seconds: f64,
     pub total_gap_time_seconds: f64,
-    
+
     /// Intraday patterns
     pub intraday_patterns: IntradayPatterns,
-    
+
     /// Seasonality detection
     pub seasonality: SeasonalityAnalysis,
 }
@@ -402,16 +397,16 @@ pub struct TemporalStatistics {
 pub struct IntradayPatterns {
     /// Hourly trade count distribution (24 elements, UTC)
     pub hourly_trade_counts: Vec<u64>,
-    
+
     /// Hourly volume distribution
     pub hourly_volume_distribution: Vec<f64>,
-    
+
     /// Peak trading hours identification
     pub peak_hours: Vec<u8>, // Hours with highest activity
-    
+
     /// Quiet periods identification
     pub quiet_hours: Vec<u8>, // Hours with lowest activity
-    
+
     /// Coefficient of variation across hours
     pub intraday_volatility: f64,
 }
@@ -420,13 +415,13 @@ pub struct IntradayPatterns {
 pub struct SeasonalityAnalysis {
     /// Day of week effects (7 elements: Mon-Sun)
     pub day_of_week_effects: Vec<f64>,
-    
+
     /// Hour of day effects (24 elements: 0-23 UTC)
     pub hour_of_day_effects: Vec<f64>,
-    
+
     /// Weekend effect magnitude
     pub weekend_effect: f64,
-    
+
     /// Seasonality strength indicators
     pub seasonality_strength: f64,
 }
@@ -436,10 +431,10 @@ pub struct FrequencyAnalysis {
     /// Trade frequency statistics
     pub trades_per_second: BasicStats,
     pub trades_per_minute: BasicStats,
-    
+
     /// Inter-trade duration analysis
     pub inter_trade_durations: DurationStats,
-    
+
     /// Burst detection
     pub burst_analysis: BurstAnalysis,
 }
@@ -451,10 +446,10 @@ pub struct DurationStats {
     pub std_dev_ms: f64,
     pub min_ms: f64,
     pub max_ms: f64,
-    
+
     /// Autocorrelation in durations (ACD modeling)
     pub duration_autocorrelation: Vec<f64>,
-    
+
     /// Clustering coefficient
     pub clustering_coefficient: f64,
 }
@@ -463,13 +458,13 @@ pub struct DurationStats {
 pub struct BurstAnalysis {
     /// Number of high-frequency bursts detected
     pub burst_count: u32,
-    
+
     /// Average burst duration
     pub avg_burst_duration_ms: f64,
-    
+
     /// Burst intensity (trades per second during bursts)
     pub avg_burst_intensity: f64,
-    
+
     /// Quiet period statistics
     pub avg_quiet_period_duration_ms: f64,
 }
@@ -478,13 +473,13 @@ pub struct BurstAnalysis {
 pub struct MicrostructureMetrics {
     /// Spread estimation
     pub spread_estimates: SpreadEstimates,
-    
+
     /// Market impact measures
     pub market_impact: MarketImpactMeasures,
-    
+
     /// Liquidity indicators
     pub liquidity_measures: LiquidityMeasures,
-    
+
     /// Noise analysis
     pub microstructure_noise: NoiseAnalysis,
 }
@@ -493,13 +488,13 @@ pub struct MicrostructureMetrics {
 pub struct SpreadEstimates {
     /// Corwin-Schultz spread estimator
     pub corwin_schultz_spread: f64,
-    
+
     /// Roll spread estimator
     pub roll_spread: f64,
-    
+
     /// Effective spread proxy
     pub effective_spread_proxy: f64,
-    
+
     /// Quoted spread (if available)
     pub quoted_spread: Option<f64>,
 }
@@ -508,13 +503,13 @@ pub struct SpreadEstimates {
 pub struct MarketImpactMeasures {
     /// Kyle's lambda (price impact coefficient)
     pub kyle_lambda: f64,
-    
+
     /// Amihud illiquidity measure
     pub amihud_illiquidity: f64,
-    
+
     /// Price impact per unit volume
     pub price_impact_per_volume: f64,
-    
+
     /// Temporary vs permanent impact ratio
     pub temporary_impact_ratio: Option<f64>,
 }
@@ -523,13 +518,13 @@ pub struct MarketImpactMeasures {
 pub struct LiquidityMeasures {
     /// Market depth proxy
     pub market_depth_proxy: f64,
-    
+
     /// Resilience measure
     pub resilience_measure: f64,
-    
+
     /// Tightness indicator
     pub tightness: f64,
-    
+
     /// Order flow toxicity (if calculable)
     pub order_flow_toxicity: Option<f64>,
 }
@@ -538,16 +533,16 @@ pub struct LiquidityMeasures {
 pub struct NoiseAnalysis {
     /// Microstructure noise variance
     pub noise_variance: f64,
-    
+
     /// Signal-to-noise ratio
     pub signal_to_noise_ratio: f64,
-    
+
     /// First-order autocorrelation in returns
     pub first_order_autocorr: f64,
-    
+
     /// Noise persistence measure
     pub noise_persistence: f64,
-    
+
     /// Hansen-Lunde noise estimator
     pub hansen_lunde_noise: Option<f64>,
 }
@@ -557,19 +552,19 @@ pub struct NoiseAnalysis {
 pub struct RangeBarStats {
     /// Basic bar counts and completion status
     pub basic_stats: RangeBarBasicStats,
-    
+
     /// Bar duration analysis
     pub duration_analysis: BarDurationAnalysis,
-    
+
     /// Volume distribution across bars
     pub volume_analysis: BarVolumeAnalysis,
-    
+
     /// Price movement efficiency
     pub price_efficiency: PriceEfficiencyAnalysis,
-    
+
     /// Bar completion patterns
     pub completion_patterns: CompletionPatternAnalysis,
-    
+
     /// Threshold analysis
     pub threshold_analysis: ThresholdAnalysis,
 }
@@ -578,17 +573,17 @@ pub struct RangeBarStats {
 pub struct RangeBarBasicStats {
     /// Total number of range bars generated
     pub total_bars: usize,
-    
+
     /// Complete vs incomplete bars
     pub complete_bars: usize,
     pub incomplete_bars: usize,
-    
+
     /// Completion rate
     pub completion_rate: f64,
-    
+
     /// Average trades per bar
     pub avg_trades_per_bar: f64,
-    
+
     /// Bar generation efficiency
     pub bars_per_hour: f64,
 }
@@ -597,16 +592,16 @@ pub struct RangeBarBasicStats {
 pub struct BarDurationAnalysis {
     /// Duration statistics (in minutes)
     pub duration_stats: BasicStats,
-    
+
     /// Duration distribution percentiles
     pub duration_percentiles: Percentiles,
-    
+
     /// Extreme duration analysis
     pub extreme_durations: ExtremeDurationAnalysis,
-    
+
     /// Duration clustering analysis
     pub clustering_analysis: DurationClusteringAnalysis,
-    
+
     /// Duration predictability
     pub predictability: DurationPredictabilityAnalysis,
 }
@@ -615,17 +610,17 @@ pub struct BarDurationAnalysis {
 pub struct ExtremeDurationAnalysis {
     /// Shortest bar duration (seconds)
     pub shortest_duration_seconds: f64,
-    
+
     /// Longest bar duration (seconds)  
     pub longest_duration_seconds: f64,
-    
+
     /// Outlier count and threshold
     pub outlier_count: u32,
     pub outlier_threshold_seconds: f64,
-    
+
     /// Flash completion events (< 1 second)
     pub flash_completions: u32,
-    
+
     /// Stalled bars (> 1 hour)
     pub stalled_bars: u32,
 }
@@ -635,13 +630,13 @@ pub struct DurationClusteringAnalysis {
     /// Ljung-Box test for serial correlation
     pub ljung_box_statistic: f64,
     pub ljung_box_p_value: f64,
-    
+
     /// Autocorrelation function (first 20 lags)
     pub autocorrelation_function: Vec<f64>,
-    
+
     /// Duration clustering coefficient
     pub clustering_coefficient: f64,
-    
+
     /// Regime persistence
     pub regime_persistence: f64,
 }
@@ -652,10 +647,10 @@ pub struct DurationPredictabilityAnalysis {
     pub acd_alpha: Option<f64>,
     pub acd_beta: Option<f64>,
     pub acd_gamma: Option<f64>,
-    
+
     /// Prediction accuracy (1-step ahead)
     pub prediction_accuracy: Option<f64>,
-    
+
     /// Duration volatility
     pub duration_volatility: f64,
 }
@@ -664,13 +659,13 @@ pub struct DurationPredictabilityAnalysis {
 pub struct BarVolumeAnalysis {
     /// Volume per bar statistics
     pub volume_stats: BasicStats,
-    
+
     /// Volume efficiency measures
     pub volume_efficiency: VolumeEfficiencyAnalysis,
-    
+
     /// Anomalous volume detection
     pub anomaly_detection: VolumeAnomalyAnalysis,
-    
+
     /// Volume persistence
     pub volume_persistence: VolumePersistenceAnalysis,
 }
@@ -679,13 +674,13 @@ pub struct BarVolumeAnalysis {
 pub struct VolumeEfficiencyAnalysis {
     /// Volume per price move
     pub volume_per_price_move: f64,
-    
+
     /// Information efficiency ratio
     pub information_efficiency_ratio: f64,
-    
+
     /// Volume imbalance measure
     pub volume_imbalance_measure: f64,
-    
+
     /// Volume-weighted duration
     pub volume_weighted_duration: f64,
 }
@@ -695,14 +690,14 @@ pub struct VolumeAnomalyAnalysis {
     /// High volume bars (> 95th percentile)
     pub high_volume_bars_count: u32,
     pub high_volume_threshold: f64,
-    
+
     /// Low volume bars (< 5th percentile)
     pub low_volume_bars_count: u32,
     pub low_volume_threshold: f64,
-    
+
     /// Volume surprise index
     pub volume_surprise_index: f64,
-    
+
     /// Outlier detection results
     pub outlier_bars: Vec<u32>, // Bar indices
 }
@@ -711,13 +706,13 @@ pub struct VolumeAnomalyAnalysis {
 pub struct VolumePersistenceAnalysis {
     /// AR(1) coefficient for volume series
     pub ar1_coefficient: f64,
-    
+
     /// Volume autocorrelation (first 10 lags)
     pub volume_autocorrelation: Vec<f64>,
-    
+
     /// Volume clustering test
     pub volume_clustering_test: f64,
-    
+
     /// Volume regime changes
     pub regime_changes: u32,
 }
@@ -726,13 +721,13 @@ pub struct VolumePersistenceAnalysis {
 pub struct PriceEfficiencyAnalysis {
     /// Range utilization efficiency
     pub range_utilization: RangeUtilizationAnalysis,
-    
+
     /// Directional consistency
     pub directional_consistency: DirectionalConsistencyAnalysis,
-    
+
     /// Path analysis
     pub path_analysis: PathAnalysis,
-    
+
     /// Momentum analysis
     pub momentum_analysis: MomentumAnalysis,
 }
@@ -741,13 +736,13 @@ pub struct PriceEfficiencyAnalysis {
 pub struct RangeUtilizationAnalysis {
     /// Actual to theoretical range ratio
     pub actual_to_theoretical_ratio: f64,
-    
+
     /// Range efficiency score (0-1)
     pub range_efficiency_score: f64,
-    
+
     /// Price path optimality
     pub price_path_optimality: f64,
-    
+
     /// Wasted range percentage
     pub wasted_range_pct: f64,
 }
@@ -756,13 +751,13 @@ pub struct RangeUtilizationAnalysis {
 pub struct DirectionalConsistencyAnalysis {
     /// Trend following ratio
     pub trend_following_ratio: f64,
-    
+
     /// Reversal frequency
     pub reversal_frequency: f64,
-    
+
     /// Momentum persistence
     pub momentum_persistence: f64,
-    
+
     /// Directional predictability
     pub directional_predictability: f64,
 }
@@ -771,13 +766,13 @@ pub struct DirectionalConsistencyAnalysis {
 pub struct PathAnalysis {
     /// Monotonic path frequency
     pub monotonic_path_frequency: f64,
-    
+
     /// Oscillatory path frequency
     pub oscillatory_path_frequency: f64,
-    
+
     /// Path complexity measure
     pub path_complexity_measure: f64,
-    
+
     /// Fractal dimension estimate
     pub fractal_dimension: Option<f64>,
 }
@@ -786,13 +781,13 @@ pub struct PathAnalysis {
 pub struct MomentumAnalysis {
     /// Momentum strength distribution
     pub momentum_strength: BasicStats,
-    
+
     /// Momentum duration analysis
     pub momentum_duration: BasicStats,
-    
+
     /// Anti-momentum events
     pub anti_momentum_frequency: f64,
-    
+
     /// Momentum predictability score
     pub momentum_predictability: f64,
 }
@@ -801,13 +796,13 @@ pub struct MomentumAnalysis {
 pub struct CompletionPatternAnalysis {
     /// Breach timing analysis
     pub breach_timing: BreachTimingAnalysis,
-    
+
     /// Price path patterns
     pub price_path_patterns: PricePathPatternAnalysis,
-    
+
     /// Volatility relationship
     pub volatility_relationship: VolatilityRelationshipAnalysis,
-    
+
     /// Completion predictability
     pub completion_predictability: CompletionPredictabilityAnalysis,
 }
@@ -816,13 +811,13 @@ pub struct CompletionPatternAnalysis {
 pub struct BreachTimingAnalysis {
     /// Early completion rate (< 25th percentile duration)
     pub early_completion_rate: f64,
-    
+
     /// Late completion rate (> 75th percentile duration)
     pub late_completion_rate: f64,
-    
+
     /// Completion time distribution
     pub completion_time_distribution: Vec<(f64, f64)>, // (time_pct, frequency)
-    
+
     /// Flash breach events
     pub flash_breach_count: u32,
 }
@@ -834,10 +829,10 @@ pub struct PricePathPatternAnalysis {
     pub monotonic_down_frequency: f64,
     pub oscillatory_frequency: f64,
     pub complex_pattern_frequency: f64,
-    
+
     /// Average path complexity
     pub avg_path_complexity: f64,
-    
+
     /// Path efficiency (shortest vs actual path)
     pub path_efficiency: f64,
 }
@@ -846,13 +841,13 @@ pub struct PricePathPatternAnalysis {
 pub struct VolatilityRelationshipAnalysis {
     /// Duration-volatility correlation
     pub duration_volatility_correlation: f64,
-    
+
     /// Volatility prediction accuracy
     pub volatility_prediction_accuracy: f64,
-    
+
     /// Adaptive threshold effectiveness
     pub adaptive_threshold_effectiveness: Option<f64>,
-    
+
     /// Volatility regime effects
     pub volatility_regime_effects: Vec<f64>,
 }
@@ -861,13 +856,13 @@ pub struct VolatilityRelationshipAnalysis {
 pub struct CompletionPredictabilityAnalysis {
     /// Predictability score (0-1)
     pub predictability_score: f64,
-    
+
     /// Early warning indicators
     pub early_warning_accuracy: f64,
-    
+
     /// False signal rate
     pub false_signal_rate: f64,
-    
+
     /// Prediction horizon (in trades)
     pub optimal_prediction_horizon: u32,
 }
@@ -876,13 +871,13 @@ pub struct CompletionPredictabilityAnalysis {
 pub struct ThresholdAnalysis {
     /// Breach frequency analysis
     pub breach_frequency: BreachFrequencyAnalysis,
-    
+
     /// Threshold sensitivity
     pub threshold_sensitivity: ThresholdSensitivityAnalysis,
-    
+
     /// Overshoot analysis
     pub overshoot_analysis: OvershootAnalysis,
-    
+
     /// Threshold optimization
     pub threshold_optimization: ThresholdOptimizationAnalysis,
 }
@@ -891,13 +886,13 @@ pub struct ThresholdAnalysis {
 pub struct BreachFrequencyAnalysis {
     /// Upper breach frequency
     pub upper_breach_frequency: f64,
-    
+
     /// Lower breach frequency
     pub lower_breach_frequency: f64,
-    
+
     /// Breach asymmetry (upper vs lower)
     pub breach_asymmetry: f64,
-    
+
     /// Multiple breach events
     pub multiple_breach_rate: f64,
 }
@@ -906,13 +901,13 @@ pub struct BreachFrequencyAnalysis {
 pub struct ThresholdSensitivityAnalysis {
     /// Sensitivity to threshold changes
     pub threshold_sensitivity: f64,
-    
+
     /// Optimal threshold range
     pub optimal_threshold_range: (f64, f64),
-    
+
     /// Robustness score
     pub robustness_score: f64,
-    
+
     /// Alternative threshold performance
     pub alternative_thresholds: Vec<(f64, f64)>, // (threshold, performance)
 }
@@ -921,13 +916,13 @@ pub struct ThresholdSensitivityAnalysis {
 pub struct OvershootAnalysis {
     /// Average overshoot magnitude
     pub avg_overshoot_magnitude: f64,
-    
+
     /// Overshoot frequency
     pub overshoot_frequency: f64,
-    
+
     /// Maximum overshoot observed
     pub max_overshoot: f64,
-    
+
     /// Overshoot predictability
     pub overshoot_predictability: f64,
 }
@@ -936,13 +931,13 @@ pub struct OvershootAnalysis {
 pub struct ThresholdOptimizationAnalysis {
     /// Suggested optimal threshold
     pub suggested_optimal_threshold: f64,
-    
+
     /// Performance improvement potential
     pub performance_improvement_potential: f64,
-    
+
     /// Optimization criteria
     pub optimization_criteria: String,
-    
+
     /// Confidence interval
     pub confidence_interval: (f64, f64),
 }
@@ -952,13 +947,13 @@ pub struct ThresholdOptimizationAnalysis {
 pub struct DistributionStats {
     /// Price distribution analysis
     pub price_distributions: DistributionFits,
-    
+
     /// Volume distribution analysis
     pub volume_distributions: DistributionFits,
-    
+
     /// Duration distribution analysis
     pub duration_distributions: DistributionFits,
-    
+
     /// Returns distribution analysis
     pub returns_distributions: DistributionFits,
 }
@@ -967,25 +962,25 @@ pub struct DistributionStats {
 pub struct DistributionFits {
     /// Normal distribution fit
     pub normal_fit: Option<DistributionFit>,
-    
+
     /// Log-normal distribution fit
     pub lognormal_fit: Option<DistributionFit>,
-    
+
     /// Gamma distribution fit
     pub gamma_fit: Option<DistributionFit>,
-    
+
     /// Student's t distribution fit
     pub student_t_fit: Option<DistributionFit>,
-    
+
     /// Exponential distribution fit
     pub exponential_fit: Option<DistributionFit>,
-    
+
     /// Pareto distribution fit
     pub pareto_fit: Option<DistributionFit>,
-    
+
     /// Best fit distribution
     pub best_fit: String,
-    
+
     /// Goodness of fit tests
     pub goodness_of_fit: GoodnessOfFitTests,
 }
@@ -994,16 +989,16 @@ pub struct DistributionFits {
 pub struct DistributionFit {
     /// Distribution parameters
     pub parameters: Vec<f64>,
-    
+
     /// Log-likelihood
     pub log_likelihood: f64,
-    
+
     /// AIC (Akaike Information Criterion)
     pub aic: f64,
-    
+
     /// BIC (Bayesian Information Criterion)
     pub bic: f64,
-    
+
     /// Parameter standard errors
     pub parameter_errors: Option<Vec<f64>>,
 }
@@ -1013,11 +1008,11 @@ pub struct GoodnessOfFitTests {
     /// Kolmogorov-Smirnov test
     pub ks_statistic: f64,
     pub ks_p_value: f64,
-    
+
     /// Anderson-Darling test
     pub ad_statistic: f64,
     pub ad_p_value: f64,
-    
+
     /// Shapiro-Wilk test (for normality)
     pub shapiro_wilk_statistic: Option<f64>,
     pub shapiro_wilk_p_value: Option<f64>,
@@ -1028,16 +1023,16 @@ pub struct GoodnessOfFitTests {
 pub struct TimeSeriesStats {
     /// Stationarity tests
     pub stationarity: StationarityTests,
-    
+
     /// Autocorrelation analysis
     pub autocorrelation: AutocorrelationAnalysis,
-    
+
     /// Spectral analysis
     pub spectral: SpectralAnalysis,
-    
+
     /// Regime detection
     pub regime_detection: RegimeDetection,
-    
+
     /// Forecast quality metrics
     pub forecast_quality: ForecastQuality,
 }
@@ -1048,15 +1043,15 @@ pub struct StationarityTests {
     pub adf_statistic: f64,
     pub adf_p_value: f64,
     pub adf_critical_values: Vec<f64>,
-    
+
     /// KPSS test
     pub kpss_statistic: f64,
     pub kpss_p_value: f64,
-    
+
     /// Phillips-Perron test
     pub pp_statistic: f64,
     pub pp_p_value: f64,
-    
+
     /// Conclusion
     pub is_stationary: bool,
 }
@@ -1065,14 +1060,14 @@ pub struct StationarityTests {
 pub struct AutocorrelationAnalysis {
     /// Autocorrelation function (first 50 lags)
     pub acf: Vec<f64>,
-    
+
     /// Partial autocorrelation function
     pub pacf: Vec<f64>,
-    
+
     /// Box-Ljung test
     pub box_ljung_statistic: f64,
     pub box_ljung_p_value: f64,
-    
+
     /// Significant lags
     pub significant_lags: Vec<u32>,
 }
@@ -1081,13 +1076,13 @@ pub struct AutocorrelationAnalysis {
 pub struct SpectralAnalysis {
     /// Dominant frequencies
     pub dominant_frequencies: Vec<f64>,
-    
+
     /// Spectral density peaks
     pub spectral_peaks: Vec<(f64, f64)>, // (frequency, power)
-    
+
     /// White noise test
     pub white_noise_test: f64,
-    
+
     /// Spectral entropy
     pub spectral_entropy: f64,
 }
@@ -1096,16 +1091,16 @@ pub struct SpectralAnalysis {
 pub struct RegimeDetection {
     /// Number of regimes detected
     pub num_regimes: u32,
-    
+
     /// Regime change points
     pub change_points: Vec<u64>, // Timestamp indices
-    
+
     /// Regime persistence
     pub avg_regime_duration: f64,
-    
+
     /// Regime transition matrix
     pub transition_matrix: Vec<Vec<f64>>,
-    
+
     /// Regime characteristics
     pub regime_characteristics: Vec<RegimeCharacteristics>,
 }
@@ -1123,19 +1118,19 @@ pub struct RegimeCharacteristics {
 pub struct ForecastQuality {
     /// Forecast horizon tested
     pub forecast_horizon: u32,
-    
+
     /// Mean Absolute Error
     pub mae: f64,
-    
+
     /// Root Mean Square Error
     pub rmse: f64,
-    
+
     /// Mean Absolute Percentage Error
     pub mape: f64,
-    
+
     /// Directional accuracy
     pub directional_accuracy: f64,
-    
+
     /// Forecast encompassing tests
     pub encompassing_test: f64,
 }
@@ -1145,13 +1140,13 @@ pub struct ForecastQuality {
 pub struct FinancialMetrics {
     /// Risk metrics
     pub risk_metrics: RiskMetrics,
-    
+
     /// Performance metrics
     pub performance_metrics: PerformanceMetricsData,
-    
+
     /// Liquidity metrics
     pub liquidity_metrics: LiquidityMetricsData,
-    
+
     /// Market quality metrics
     pub market_quality: MarketQualityMetrics,
 }
@@ -1162,19 +1157,19 @@ pub struct RiskMetrics {
     pub var_95: f64,
     pub var_99: f64,
     pub var_999: f64,
-    
+
     /// Conditional Value at Risk (Expected Shortfall)
     pub cvar_95: f64,
     pub cvar_99: f64,
-    
+
     /// Maximum Drawdown
     pub max_drawdown: f64,
     pub max_drawdown_duration_hours: f64,
-    
+
     /// Volatility measures
     pub realized_volatility_daily: f64,
     pub realized_volatility_annualized: f64,
-    
+
     /// Risk-adjusted returns
     pub sharpe_ratio: f64,
     pub sortino_ratio: f64,
@@ -1187,15 +1182,15 @@ pub struct PerformanceMetricsData {
     pub total_return: f64,
     pub annualized_return: f64,
     pub excess_return: f64,
-    
+
     /// Information ratios
     pub information_ratio: f64,
     pub tracking_error: f64,
-    
+
     /// Performance attribution
     pub alpha: f64,
     pub beta: f64,
-    
+
     /// Higher moments
     pub skewness: f64,
     pub kurtosis: f64,
@@ -1207,11 +1202,11 @@ pub struct LiquidityMetricsData {
     pub estimated_spread: f64,
     pub price_impact: f64,
     pub market_impact: f64,
-    
+
     /// Liquidity ratios
     pub turnover_ratio: f64,
     pub volume_participation_rate: f64,
-    
+
     /// Depth measures
     pub effective_depth: f64,
     pub resilience_time: f64,
@@ -1222,11 +1217,11 @@ pub struct MarketQualityMetrics {
     /// Efficiency measures
     pub market_efficiency_score: f64,
     pub price_discovery_efficiency: f64,
-    
+
     /// Fairness indicators
     pub fairness_index: f64,
     pub information_asymmetry: f64,
-    
+
     /// Stability metrics
     pub market_stability_index: f64,
     pub volatility_clustering_strength: f64,
@@ -1237,13 +1232,13 @@ pub struct MarketQualityMetrics {
 pub struct ValidationStats {
     /// Data integrity verification
     pub data_integrity: DataIntegrityStats,
-    
+
     /// Precision validation
     pub precision_validation: PrecisionValidationStats,
-    
+
     /// Cross-format consistency
     pub format_consistency: FormatConsistencyStats,
-    
+
     /// Performance validation
     pub performance_validation: PerformanceValidationStats,
 }
@@ -1253,13 +1248,13 @@ pub struct DataIntegrityStats {
     /// Cryptographic checksums
     #[cfg(feature = "data-integrity")]
     pub sha256_hash: String,
-    
+
     #[cfg(feature = "data-integrity")]
     pub md5_checksum: String,
-    
+
     #[cfg(feature = "data-integrity")]
     pub crc32_checksum: u32,
-    
+
     /// Data completeness
     pub completeness_score: f64,
     pub missing_data_points: u64,
@@ -1272,7 +1267,7 @@ pub struct PrecisionValidationStats {
     pub price_precision_bits: u8,
     pub volume_precision_bits: u8,
     pub timestamp_precision_ns: u64,
-    
+
     /// Rounding error analysis
     pub max_rounding_error: f64,
     pub avg_rounding_error: f64,
@@ -1285,11 +1280,11 @@ pub struct FormatConsistencyStats {
     pub csv_json_match_rate: f64,
     pub csv_parquet_match_rate: f64,
     pub json_parquet_match_rate: f64,
-    
+
     /// Conversion loss analysis
     pub format_conversion_loss: f64,
     pub precision_preservation_rate: f64,
-    
+
     /// Schema validation results
     pub schema_validation_passed: bool,
     pub schema_validation_errors: Vec<String>,
@@ -1301,11 +1296,11 @@ pub struct PerformanceValidationStats {
     pub processing_speed_trades_per_sec: f64,
     pub memory_efficiency_score: f64,
     pub cpu_utilization_pct: f64,
-    
+
     /// Scalability metrics
     pub linear_scalability_factor: f64,
     pub memory_growth_rate: f64,
-    
+
     /// Throughput validation
     pub throughput_validation_passed: bool,
     pub performance_regression_detected: bool,
@@ -1316,13 +1311,13 @@ pub struct PerformanceValidationStats {
 pub struct PerformanceMetrics {
     /// Processing throughput
     pub throughput: ThroughputMetrics,
-    
+
     /// Latency measurements
     pub latency: LatencyMetrics,
-    
+
     /// Resource utilization
     pub resource_utilization: ResourceUtilizationMetrics,
-    
+
     /// Scalability characteristics
     pub scalability: ScalabilityMetrics,
 }
@@ -1333,11 +1328,11 @@ pub struct ThroughputMetrics {
     pub trades_processed_per_second: f64,
     pub bars_generated_per_second: f64,
     pub bytes_processed_per_second: f64,
-    
+
     /// Peak performance
     pub peak_throughput_trades_per_sec: f64,
     pub sustained_throughput_trades_per_sec: f64,
-    
+
     /// Efficiency metrics
     pub processing_efficiency_pct: f64,
     pub cpu_efficiency_pct: f64,
@@ -1349,11 +1344,11 @@ pub struct LatencyMetrics {
     pub avg_processing_latency_ms: f64,
     pub p95_processing_latency_ms: f64,
     pub p99_processing_latency_ms: f64,
-    
+
     /// I/O latencies
     pub avg_io_latency_ms: f64,
     pub p95_io_latency_ms: f64,
-    
+
     /// End-to-end latency
     pub end_to_end_latency_ms: f64,
 }
@@ -1364,11 +1359,11 @@ pub struct ResourceUtilizationMetrics {
     pub peak_memory_usage_mb: f64,
     pub avg_memory_usage_mb: f64,
     pub memory_efficiency_score: f64,
-    
+
     /// CPU usage
     pub avg_cpu_usage_pct: f64,
     pub peak_cpu_usage_pct: f64,
-    
+
     /// I/O statistics
     pub total_io_operations: u64,
     pub io_wait_time_pct: f64,
@@ -1378,13 +1373,13 @@ pub struct ResourceUtilizationMetrics {
 pub struct ScalabilityMetrics {
     /// Linear scalability assessment
     pub linear_scalability_coefficient: f64,
-    
+
     /// Memory scaling characteristics
     pub memory_scaling_exponent: f64,
-    
+
     /// Processing complexity
     pub algorithmic_complexity: String, // Big-O notation
-    
+
     /// Parallel efficiency
     pub parallel_efficiency_pct: f64,
 }
@@ -1394,16 +1389,16 @@ pub struct ScalabilityMetrics {
 pub struct QualityMetrics {
     /// Data completeness
     pub completeness: CompletenessMetrics,
-    
+
     /// Data accuracy
     pub accuracy: AccuracyMetrics,
-    
+
     /// Data consistency
     pub consistency: ConsistencyMetrics,
-    
+
     /// Data timeliness
     pub timeliness: TimelinessMetrics,
-    
+
     /// Overall quality score
     pub overall_quality_score: f64,
 }
@@ -1413,12 +1408,12 @@ pub struct CompletenessMetrics {
     /// Data coverage
     pub data_coverage_pct: f64,
     pub expected_vs_actual_records: f64,
-    
+
     /// Missing data analysis
     pub missing_trades_count: u64,
     pub missing_time_periods: u64,
     pub largest_gap_duration_seconds: f64,
-    
+
     /// Completeness score
     pub completeness_score: f64,
 }
@@ -1429,14 +1424,14 @@ pub struct AccuracyMetrics {
     pub price_range_violations: u32,
     pub volume_range_violations: u32,
     pub timestamp_sequence_violations: u32,
-    
+
     /// Logical consistency
     pub logical_consistency_violations: u32,
-    
+
     /// Data quality flags
     pub suspicious_price_movements: u32,
     pub suspicious_volume_spikes: u32,
-    
+
     /// Accuracy score
     pub accuracy_score: f64,
 }
@@ -1445,13 +1440,13 @@ pub struct AccuracyMetrics {
 pub struct ConsistencyMetrics {
     /// Cross-field consistency
     pub cross_field_consistency_violations: u32,
-    
+
     /// Temporal consistency
     pub temporal_consistency_violations: u32,
-    
+
     /// Business rule violations
     pub business_rule_violations: u32,
-    
+
     /// Consistency score
     pub consistency_score: f64,
 }
@@ -1461,10 +1456,10 @@ pub struct TimelinessMetrics {
     /// Processing delays
     pub avg_processing_delay_seconds: f64,
     pub max_processing_delay_seconds: f64,
-    
+
     /// Data freshness
     pub data_freshness_score: f64,
-    
+
     /// Real-time capability
     pub real_time_processing_capable: bool,
 }
@@ -1474,14 +1469,14 @@ pub struct TimelinessMetrics {
 pub struct FormatMetadata {
     /// CSV format metadata
     pub csv: CsvFormatMetadata,
-    
+
     /// JSON format metadata
     pub json: JsonFormatMetadata,
-    
+
     /// Arrow format metadata (if enabled)
     #[cfg(feature = "arrow-support")]
     pub arrow: Option<ArrowFormatMetadata>,
-    
+
     /// Parquet format metadata (if enabled)
     #[cfg(feature = "arrow-support")]
     pub parquet: Option<ParquetFormatMetadata>,
@@ -1493,13 +1488,13 @@ pub struct CsvFormatMetadata {
     pub file_size_bytes: u64,
     pub row_count: u64,
     pub column_count: u8,
-    
+
     /// Format specifications
     pub delimiter: char,
     pub quote_character: char,
     pub has_header: bool,
     pub encoding: String, // "UTF-8"
-    
+
     /// Compression (if any)
     pub compression: Option<String>,
     pub compression_ratio: Option<f64>,
@@ -1510,16 +1505,16 @@ pub struct JsonFormatMetadata {
     /// File characteristics
     pub file_size_bytes: u64,
     pub object_count: u64,
-    
+
     /// JSON structure
     pub format_type: String, // "array_of_objects" or "line_delimited"
     pub pretty_printed: bool,
     pub encoding: String, // "UTF-8"
-    
+
     /// Schema information
     pub schema_complexity: f64,
     pub nested_depth: u8,
-    
+
     /// Compression (if any)
     pub compression: Option<String>,
     pub compression_ratio: Option<f64>,
@@ -1531,15 +1526,15 @@ pub struct ArrowFormatMetadata {
     /// Arrow-specific metadata
     pub schema_version: String,
     pub arrow_version: String,
-    
+
     /// File characteristics
     pub file_size_bytes: u64,
     pub row_count: u64,
     pub column_count: u8,
-    
+
     /// Schema metadata
     pub schema_metadata: HashMap<String, String>,
-    
+
     /// Memory characteristics
     pub memory_mapped: bool,
     pub zero_copy_compatible: bool,
@@ -1551,22 +1546,22 @@ pub struct ParquetFormatMetadata {
     /// Parquet-specific metadata
     pub parquet_version: String,
     pub created_by: String,
-    
+
     /// File characteristics
     pub file_size_bytes: u64,
     pub row_count: u64,
     pub row_group_count: u32,
-    
+
     /// Compression information
     pub compression_algorithm: String, // "SNAPPY", "GZIP", etc.
     pub compression_ratio: f64,
     pub uncompressed_size_bytes: u64,
-    
+
     /// Storage optimization
     pub column_statistics_available: bool,
     pub predicate_pushdown_supported: bool,
     pub projection_pushdown_supported: bool,
-    
+
     /// Performance characteristics
     pub estimated_read_performance: f64, // MB/s
     pub memory_efficiency_score: f64,
@@ -1576,7 +1571,7 @@ pub struct ParquetFormatMetadata {
 pub struct StatisticalEngine {
     #[cfg(feature = "statistics")]
     quantile_estimator: Option<CKMS<f64>>,
-    
+
     /// Configuration for statistical computations
     config: StatisticalConfig,
 }
@@ -1585,19 +1580,19 @@ pub struct StatisticalEngine {
 pub struct StatisticalConfig {
     /// Quantile estimation accuracy
     pub quantile_accuracy: f64, // Default: 0.001 (0.1% error)
-    
+
     /// Enable parallel computation
     pub parallel_computation: bool,
-    
+
     /// Statistical significance level
     pub significance_level: f64, // Default: 0.05
-    
+
     /// Maximum sample size for distribution fitting
     pub max_sample_size: usize, // Default: 100,000
-    
+
     /// Enable advanced time series analysis
     pub enable_time_series_analysis: bool,
-    
+
     /// Enable regime detection
     pub enable_regime_detection: bool,
 }
@@ -1620,7 +1615,7 @@ impl StatisticalEngine {
     pub fn new() -> Self {
         Self::with_config(StatisticalConfig::default())
     }
-    
+
     /// Create new statistical engine with custom configuration
     pub fn with_config(config: StatisticalConfig) -> Self {
         Self {
@@ -1629,7 +1624,12 @@ impl StatisticalEngine {
             config,
         }
     }
-    
+
+    /// Get reference to the configuration
+    pub fn config(&self) -> &StatisticalConfig {
+        &self.config
+    }
+
     /// Compute comprehensive metadata for range bar export
     pub fn compute_comprehensive_metadata(
         &mut self,
@@ -1640,20 +1640,19 @@ impl StatisticalEngine {
         start_date: &str,
         end_date: &str,
     ) -> Result<RangeBarMetadata, Box<dyn std::error::Error + Send + Sync>> {
-        
         let start_time = std::time::Instant::now();
-        
+
         // Compute all statistical components in parallel where possible
         let statistics = if self.config.parallel_computation {
             self.compute_statistics_parallel(trades, bars)?
         } else {
             self.compute_statistics_sequential(trades, bars)?
         };
-        
+
         let performance = self.compute_performance_metrics(trades, bars, start_time.elapsed())?;
         let quality = self.compute_quality_metrics(trades, bars)?;
         let formats = self.compute_format_metadata(bars)?;
-        
+
         Ok(RangeBarMetadata {
             schema_version: "1.0.0".to_string(),
             dataset: self.create_dataset_info(symbol, start_date, end_date, threshold_pct),
@@ -1665,7 +1664,7 @@ impl StatisticalEngine {
             extensions: HashMap::new(),
         })
     }
-    
+
     #[cfg(feature = "statistics")]
     fn compute_statistics_parallel(
         &mut self,
@@ -1679,7 +1678,7 @@ impl StatisticalEngine {
         let time_series = self.compute_time_series_stats(bars)?;
         let financial_metrics = self.compute_financial_metrics(trades, bars)?;
         let validation = self.compute_validation_stats(trades, bars)?;
-        
+
         Ok(Statistics {
             market_data,
             range_bars,
@@ -1689,7 +1688,7 @@ impl StatisticalEngine {
             validation,
         })
     }
-    
+
     #[cfg(not(feature = "statistics"))]
     fn compute_statistics_parallel(
         &mut self,
@@ -1698,7 +1697,7 @@ impl StatisticalEngine {
     ) -> Result<Statistics, Box<dyn std::error::Error + Send + Sync>> {
         self.compute_statistics_sequential(trades, bars)
     }
-    
+
     fn compute_statistics_sequential(
         &mut self,
         trades: &[AggTrade],
@@ -1713,37 +1712,44 @@ impl StatisticalEngine {
             validation: self.compute_validation_stats(trades, bars)?,
         })
     }
-    
+
     // Implementation stubs - would be fully implemented with actual statistical computations
-    fn compute_market_data_stats(&self, trades: &[AggTrade]) -> Result<MarketDataStats, Box<dyn std::error::Error + Send + Sync>> {
+    fn compute_market_data_stats(
+        &self,
+        trades: &[AggTrade],
+    ) -> Result<MarketDataStats, Box<dyn std::error::Error + Send + Sync>> {
         // This would contain the full implementation using statrs, quantiles, etc.
         // For now, providing a basic structure
-        
+
         if trades.is_empty() {
             return Err("No trades data provided".into());
         }
-        
+
         // Basic computations (would be much more comprehensive in full implementation)
         let total_trades = trades.len() as u64;
         let total_volume: f64 = trades.iter().map(|t| t.volume.to_f64()).sum();
-        
+
         let prices: Vec<f64> = trades.iter().map(|t| t.price.to_f64()).collect();
         let min_price = prices.iter().fold(f64::INFINITY, |a, &b| a.min(b));
         let max_price = prices.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
         let mean_price = prices.iter().sum::<f64>() / prices.len() as f64;
-        
+
         // Calculate basic statistics (full implementation would use statrs)
-        let variance = prices.iter().map(|p| (p - mean_price).powi(2)).sum::<f64>() / prices.len() as f64;
+        let variance =
+            prices.iter().map(|p| (p - mean_price).powi(2)).sum::<f64>() / prices.len() as f64;
         let std_dev = variance.sqrt();
-        
+
         Ok(MarketDataStats {
             total_trades,
             total_volume,
-            total_turnover: prices.iter().zip(trades.iter())
+            total_turnover: prices
+                .iter()
+                .zip(trades.iter())
                 .map(|(p, t)| p * t.volume.to_f64())
                 .sum(),
             data_span_seconds: if trades.len() > 1 {
-                (trades.last().unwrap().timestamp - trades.first().unwrap().timestamp) as f64 / 1000.0
+                (trades.last().unwrap().timestamp - trades.first().unwrap().timestamp) as f64
+                    / 1000.0
             } else {
                 0.0
             },
@@ -1756,8 +1762,14 @@ impl StatisticalEngine {
                 skewness: 0.0, // Would calculate using statrs
                 kurtosis: 0.0, // Would calculate using statrs
                 percentiles: Percentiles {
-                    p1: 0.0, p5: 0.0, p10: 0.0, p25: 0.0,
-                    p75: 0.0, p90: 0.0, p95: 0.0, p99: 0.0,
+                    p1: 0.0,
+                    p5: 0.0,
+                    p10: 0.0,
+                    p25: 0.0,
+                    p75: 0.0,
+                    p90: 0.0,
+                    p95: 0.0,
+                    p99: 0.0,
                 },
                 tick_analysis: TickAnalysis {
                     min_tick_size: 0.01, // Would analyze actual tick sizes
@@ -1767,22 +1779,36 @@ impl StatisticalEngine {
                 },
                 returns: ReturnsAnalysis {
                     log_returns: BasicStats {
-                        mean: 0.0, std_dev: 0.0, skewness: 0.0, kurtosis: 0.0,
-                        jarque_bera_test: 0.0, jarque_bera_p_value: 0.0,
+                        mean: 0.0,
+                        std_dev: 0.0,
+                        skewness: 0.0,
+                        kurtosis: 0.0,
+                        jarque_bera_test: 0.0,
+                        jarque_bera_p_value: 0.0,
                     },
                     simple_returns: BasicStats {
-                        mean: 0.0, std_dev: 0.0, skewness: 0.0, kurtosis: 0.0,
-                        jarque_bera_test: 0.0, jarque_bera_p_value: 0.0,
+                        mean: 0.0,
+                        std_dev: 0.0,
+                        skewness: 0.0,
+                        kurtosis: 0.0,
+                        jarque_bera_test: 0.0,
+                        jarque_bera_p_value: 0.0,
                     },
                     autocorrelation: vec![0.0; 10],
                     volatility_clustering: 0.0,
                 },
             },
             volume_stats: VolumeStatistics {
-                min: trades.iter().map(|t| t.volume.to_f64()).fold(f64::INFINITY, f64::min),
-                max: trades.iter().map(|t| t.volume.to_f64()).fold(f64::NEG_INFINITY, f64::max),
+                min: trades
+                    .iter()
+                    .map(|t| t.volume.to_f64())
+                    .fold(f64::INFINITY, f64::min),
+                max: trades
+                    .iter()
+                    .map(|t| t.volume.to_f64())
+                    .fold(f64::NEG_INFINITY, f64::max),
                 mean: total_volume / total_trades as f64,
-                median: 0.0, // Would calculate using quantiles
+                median: 0.0,  // Would calculate using quantiles
                 std_dev: 0.0, // Would calculate properly
                 coefficient_variation: 0.0,
                 concentration: VolumeConcentration {
@@ -1797,7 +1823,10 @@ impl StatisticalEngine {
             },
             temporal_stats: TemporalStatistics {
                 mean_sampling_frequency_hz: if trades.len() > 1 {
-                    (trades.len() - 1) as f64 / ((trades.last().unwrap().timestamp - trades.first().unwrap().timestamp) as f64 / 1000.0)
+                    (trades.len() - 1) as f64
+                        / ((trades.last().unwrap().timestamp - trades.first().unwrap().timestamp)
+                            as f64
+                            / 1000.0)
                 } else {
                     0.0
                 },
@@ -1821,16 +1850,27 @@ impl StatisticalEngine {
             },
             frequency_analysis: FrequencyAnalysis {
                 trades_per_second: BasicStats {
-                    mean: 0.0, std_dev: 0.0, skewness: 0.0, kurtosis: 0.0,
-                    jarque_bera_test: 0.0, jarque_bera_p_value: 0.0,
+                    mean: 0.0,
+                    std_dev: 0.0,
+                    skewness: 0.0,
+                    kurtosis: 0.0,
+                    jarque_bera_test: 0.0,
+                    jarque_bera_p_value: 0.0,
                 },
                 trades_per_minute: BasicStats {
-                    mean: 0.0, std_dev: 0.0, skewness: 0.0, kurtosis: 0.0,
-                    jarque_bera_test: 0.0, jarque_bera_p_value: 0.0,
+                    mean: 0.0,
+                    std_dev: 0.0,
+                    skewness: 0.0,
+                    kurtosis: 0.0,
+                    jarque_bera_test: 0.0,
+                    jarque_bera_p_value: 0.0,
                 },
                 inter_trade_durations: DurationStats {
-                    mean_ms: 0.0, median_ms: 0.0, std_dev_ms: 0.0,
-                    min_ms: 0.0, max_ms: 0.0,
+                    mean_ms: 0.0,
+                    median_ms: 0.0,
+                    std_dev_ms: 0.0,
+                    min_ms: 0.0,
+                    max_ms: 0.0,
                     duration_autocorrelation: vec![0.0; 10],
                     clustering_coefficient: 0.0,
                 },
@@ -1870,9 +1910,12 @@ impl StatisticalEngine {
             },
         })
     }
-    
+
     // Additional implementation stubs - these would be fully implemented with comprehensive statistical analysis
-    fn compute_range_bar_stats(&self, bars: &[RangeBar]) -> Result<RangeBarStats, Box<dyn std::error::Error + Send + Sync>> {
+    fn compute_range_bar_stats(
+        &self,
+        bars: &[RangeBar],
+    ) -> Result<RangeBarStats, Box<dyn std::error::Error + Send + Sync>> {
         if bars.is_empty() {
             return Ok(Default::default());
         }
@@ -1883,15 +1926,17 @@ impl StatisticalEngine {
         let complete_bars = bars.iter().filter(|bar| bar.close.0 != 0).count();
         let incomplete_bars = total_bars - complete_bars;
         let completion_rate = complete_bars as f64 / total_bars as f64;
-        
+
         // Calculate average trades per bar
-        let avg_trades_per_bar = bars.iter()
+        let avg_trades_per_bar = bars
+            .iter()
             .map(|bar| bar.trade_count as f64)
             .collect::<Vec<f64>>()
             .mean();
 
         // Duration analysis (timestamps are in milliseconds)
-        let durations: Vec<f64> = bars.iter()
+        let durations: Vec<f64> = bars
+            .iter()
             .filter_map(|bar| {
                 if bar.close_time > bar.open_time {
                     Some((bar.close_time - bar.open_time) as f64 / 1000.0) // Convert to seconds
@@ -1909,7 +1954,7 @@ impl StatisticalEngine {
                 std_dev: duration_std,
                 skewness: self.calculate_skewness(&durations)?,
                 kurtosis: self.calculate_kurtosis(&durations)?,
-                jarque_bera_test: 0.0, // Placeholder for now
+                jarque_bera_test: 0.0,    // Placeholder for now
                 jarque_bera_p_value: 0.0, // Placeholder for now
             }
         } else {
@@ -1917,9 +1962,7 @@ impl StatisticalEngine {
         };
 
         // Volume analysis
-        let volumes: Vec<f64> = bars.iter()
-            .map(|bar| bar.volume.to_f64())
-            .collect();
+        let volumes: Vec<f64> = bars.iter().map(|bar| bar.volume.to_f64()).collect();
 
         let volume_stats = if !volumes.is_empty() {
             let volume_mean = volumes.clone().mean();
@@ -1929,7 +1972,7 @@ impl StatisticalEngine {
                 std_dev: volume_std,
                 skewness: self.calculate_skewness(&volumes)?,
                 kurtosis: self.calculate_kurtosis(&volumes)?,
-                jarque_bera_test: 0.0, // Placeholder for now
+                jarque_bera_test: 0.0,    // Placeholder for now
                 jarque_bera_p_value: 0.0, // Placeholder for now
             }
         } else {
@@ -1944,7 +1987,7 @@ impl StatisticalEngine {
                 completion_rate,
                 avg_trades_per_bar,
                 bars_per_hour: if !durations.is_empty() {
-                    3600.0 / durations.mean() // bars per hour
+                    3600.0 / (durations.mean() / 1000.0) // bars per hour (convert ms to seconds)
                 } else {
                     0.0
                 },
@@ -1960,27 +2003,42 @@ impl StatisticalEngine {
             ..Default::default()
         })
     }
-    
-    fn compute_distribution_stats(&self, _trades: &[AggTrade], _bars: &[RangeBar]) -> Result<DistributionStats, Box<dyn std::error::Error + Send + Sync>> {
+
+    fn compute_distribution_stats(
+        &self,
+        _trades: &[AggTrade],
+        _bars: &[RangeBar],
+    ) -> Result<DistributionStats, Box<dyn std::error::Error + Send + Sync>> {
         // Distribution fitting and analysis would go here
         Ok(Default::default())
     }
-    
-    fn compute_time_series_stats(&self, _bars: &[RangeBar]) -> Result<TimeSeriesStats, Box<dyn std::error::Error + Send + Sync>> {
+
+    fn compute_time_series_stats(
+        &self,
+        _bars: &[RangeBar],
+    ) -> Result<TimeSeriesStats, Box<dyn std::error::Error + Send + Sync>> {
         // Time series analysis would go here
         Ok(Default::default())
     }
-    
-    fn compute_financial_metrics(&self, _trades: &[AggTrade], _bars: &[RangeBar]) -> Result<FinancialMetrics, Box<dyn std::error::Error + Send + Sync>> {
+
+    fn compute_financial_metrics(
+        &self,
+        _trades: &[AggTrade],
+        _bars: &[RangeBar],
+    ) -> Result<FinancialMetrics, Box<dyn std::error::Error + Send + Sync>> {
         // Financial metrics computation would go here
         Ok(Default::default())
     }
-    
-    fn compute_validation_stats(&self, _trades: &[AggTrade], _bars: &[RangeBar]) -> Result<ValidationStats, Box<dyn std::error::Error + Send + Sync>> {
+
+    fn compute_validation_stats(
+        &self,
+        _trades: &[AggTrade],
+        _bars: &[RangeBar],
+    ) -> Result<ValidationStats, Box<dyn std::error::Error + Send + Sync>> {
         // Data validation and integrity checks would go here
         Ok(Default::default())
     }
-    
+
     fn compute_performance_metrics(
         &self,
         _trades: &[AggTrade],
@@ -1990,29 +2048,45 @@ impl StatisticalEngine {
         // Performance metrics computation would go here
         Ok(Default::default())
     }
-    
-    fn compute_quality_metrics(&self, _trades: &[AggTrade], _bars: &[RangeBar]) -> Result<QualityMetrics, Box<dyn std::error::Error + Send + Sync>> {
+
+    fn compute_quality_metrics(
+        &self,
+        _trades: &[AggTrade],
+        _bars: &[RangeBar],
+    ) -> Result<QualityMetrics, Box<dyn std::error::Error + Send + Sync>> {
         // Data quality analysis would go here
         Ok(Default::default())
     }
-    
-    fn compute_format_metadata(&self, _bars: &[RangeBar]) -> Result<FormatMetadata, Box<dyn std::error::Error + Send + Sync>> {
+
+    fn compute_format_metadata(
+        &self,
+        _bars: &[RangeBar],
+    ) -> Result<FormatMetadata, Box<dyn std::error::Error + Send + Sync>> {
         // Format-specific metadata computation would go here
         Ok(Default::default())
     }
-    
+
     // Helper methods for creating metadata structures
-    fn create_dataset_info(&self, symbol: &str, start_date: &str, end_date: &str, threshold_pct: f64) -> DatasetInfo {
+    fn create_dataset_info(
+        &self,
+        symbol: &str,
+        start_date: &str,
+        end_date: &str,
+        threshold_pct: f64,
+    ) -> DatasetInfo {
         DatasetInfo {
-            id: format!("um_{}_rangebar_{}_{}_{}pct", 
-                       symbol, 
-                       start_date.replace("-", ""),
-                       end_date.replace("-", ""),
-                       (threshold_pct * 100.0) as u32),
+            id: format!(
+                "um_{}_rangebar_{}_{}_{}pct",
+                symbol,
+                start_date.replace("-", ""),
+                end_date.replace("-", ""),
+                (threshold_pct * 100.0) as u32
+            ),
             title: format!("Range Bars for {} ({}%)", symbol, threshold_pct * 100.0),
             description: format!(
                 "Non-lookahead range bars generated from Binance UM Futures aggTrades data for {} with {}% threshold",
-                symbol, threshold_pct * 100.0
+                symbol,
+                threshold_pct * 100.0
             ),
             instrument: InstrumentInfo {
                 symbol: symbol.to_string(),
@@ -2050,7 +2124,7 @@ impl StatisticalEngine {
             },
         }
     }
-    
+
     fn create_algorithm_config(&self, threshold_pct: f64) -> AlgorithmConfig {
         AlgorithmConfig {
             algorithm: "non_lookahead_range_bars".to_string(),
@@ -2077,44 +2151,54 @@ impl StatisticalEngine {
 
     // Helper methods for statistical calculations
     #[cfg(feature = "statistics")]
-    fn calculate_skewness(&self, data: &[f64]) -> Result<f64, Box<dyn std::error::Error + Send + Sync>> {
+    fn calculate_skewness(
+        &self,
+        data: &[f64],
+    ) -> Result<f64, Box<dyn std::error::Error + Send + Sync>> {
         if data.len() < 3 {
             return Ok(0.0);
         }
-        
+
         let mean = data.mean();
         let std_dev = data.std_dev();
-        
+
         if std_dev == 0.0 {
             return Ok(0.0);
         }
-        
+
         let n = data.len() as f64;
-        let skewness = data.iter()
+        let skewness = data
+            .iter()
             .map(|x| ((x - mean) / std_dev).powi(3))
-            .sum::<f64>() / n;
-            
+            .sum::<f64>()
+            / n;
+
         Ok(skewness)
     }
 
     #[cfg(feature = "statistics")]
-    fn calculate_kurtosis(&self, data: &[f64]) -> Result<f64, Box<dyn std::error::Error + Send + Sync>> {
+    fn calculate_kurtosis(
+        &self,
+        data: &[f64],
+    ) -> Result<f64, Box<dyn std::error::Error + Send + Sync>> {
         if data.len() < 4 {
             return Ok(0.0);
         }
-        
+
         let mean = data.mean();
         let std_dev = data.std_dev();
-        
+
         if std_dev == 0.0 {
             return Ok(0.0);
         }
-        
+
         let n = data.len() as f64;
-        let kurtosis = data.iter()
+        let kurtosis = data
+            .iter()
             .map(|x| ((x - mean) / std_dev).powi(4))
-            .sum::<f64>() / n;
-            
+            .sum::<f64>()
+            / n;
+
         // Return excess kurtosis (subtract 3 for normal distribution)
         Ok(kurtosis - 3.0)
     }
@@ -2124,18 +2208,18 @@ impl StatisticalEngine {
 #[cfg(feature = "data-integrity")]
 pub mod integrity {
     use super::*;
-    
+
     pub fn compute_sha256_hash(data: &[u8]) -> String {
         let mut hasher = Sha256::new();
         hasher.update(data);
         format!("{:x}", hasher.finalize())
     }
-    
+
     pub fn compute_md5_hash(data: &[u8]) -> String {
         let digest = md5::compute(data);
         format!("{:x}", digest)
     }
-    
+
     pub fn compute_crc32_hash(data: &[u8]) -> u32 {
         let mut hasher = Crc32Hasher::new();
         hasher.update(data);
@@ -2146,14 +2230,14 @@ pub mod integrity {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_statistical_engine_creation() {
         let engine = StatisticalEngine::new();
         assert!(engine.config.parallel_computation);
         assert_eq!(engine.config.quantile_accuracy, 0.001);
     }
-    
+
     #[test]
     fn test_metadata_structure_serialization() {
         // Test that the metadata structure can be serialized to JSON
@@ -2223,11 +2307,22 @@ mod tests {
                     total_turnover: 0.0,
                     data_span_seconds: 0.0,
                     price_stats: PriceStatistics {
-                        min: 0.0, max: 0.0, mean: 0.0, median: 0.0,
-                        std_dev: 0.0, skewness: 0.0, kurtosis: 0.0,
+                        min: 0.0,
+                        max: 0.0,
+                        mean: 0.0,
+                        median: 0.0,
+                        std_dev: 0.0,
+                        skewness: 0.0,
+                        kurtosis: 0.0,
                         percentiles: Percentiles {
-                            p1: 0.0, p5: 0.0, p10: 0.0, p25: 0.0,
-                            p75: 0.0, p90: 0.0, p95: 0.0, p99: 0.0,
+                            p1: 0.0,
+                            p5: 0.0,
+                            p10: 0.0,
+                            p25: 0.0,
+                            p75: 0.0,
+                            p90: 0.0,
+                            p95: 0.0,
+                            p99: 0.0,
                         },
                         tick_analysis: TickAnalysis {
                             min_tick_size: 0.0,
@@ -2237,20 +2332,32 @@ mod tests {
                         },
                         returns: ReturnsAnalysis {
                             log_returns: BasicStats {
-                                mean: 0.0, std_dev: 0.0, skewness: 0.0, kurtosis: 0.0,
-                                jarque_bera_test: 0.0, jarque_bera_p_value: 0.0,
+                                mean: 0.0,
+                                std_dev: 0.0,
+                                skewness: 0.0,
+                                kurtosis: 0.0,
+                                jarque_bera_test: 0.0,
+                                jarque_bera_p_value: 0.0,
                             },
                             simple_returns: BasicStats {
-                                mean: 0.0, std_dev: 0.0, skewness: 0.0, kurtosis: 0.0,
-                                jarque_bera_test: 0.0, jarque_bera_p_value: 0.0,
+                                mean: 0.0,
+                                std_dev: 0.0,
+                                skewness: 0.0,
+                                kurtosis: 0.0,
+                                jarque_bera_test: 0.0,
+                                jarque_bera_p_value: 0.0,
                             },
                             autocorrelation: vec![],
                             volatility_clustering: 0.0,
                         },
                     },
                     volume_stats: VolumeStatistics {
-                        min: 0.0, max: 0.0, mean: 0.0, median: 0.0,
-                        std_dev: 0.0, coefficient_variation: 0.0,
+                        min: 0.0,
+                        max: 0.0,
+                        mean: 0.0,
+                        median: 0.0,
+                        std_dev: 0.0,
+                        coefficient_variation: 0.0,
                         concentration: VolumeConcentration {
                             gini_coefficient: 0.0,
                             top_1pct_volume_share: 0.0,
@@ -2283,16 +2390,27 @@ mod tests {
                     },
                     frequency_analysis: FrequencyAnalysis {
                         trades_per_second: BasicStats {
-                            mean: 0.0, std_dev: 0.0, skewness: 0.0, kurtosis: 0.0,
-                            jarque_bera_test: 0.0, jarque_bera_p_value: 0.0,
+                            mean: 0.0,
+                            std_dev: 0.0,
+                            skewness: 0.0,
+                            kurtosis: 0.0,
+                            jarque_bera_test: 0.0,
+                            jarque_bera_p_value: 0.0,
                         },
                         trades_per_minute: BasicStats {
-                            mean: 0.0, std_dev: 0.0, skewness: 0.0, kurtosis: 0.0,
-                            jarque_bera_test: 0.0, jarque_bera_p_value: 0.0,
+                            mean: 0.0,
+                            std_dev: 0.0,
+                            skewness: 0.0,
+                            kurtosis: 0.0,
+                            jarque_bera_test: 0.0,
+                            jarque_bera_p_value: 0.0,
                         },
                         inter_trade_durations: DurationStats {
-                            mean_ms: 0.0, median_ms: 0.0, std_dev_ms: 0.0,
-                            min_ms: 0.0, max_ms: 0.0,
+                            mean_ms: 0.0,
+                            median_ms: 0.0,
+                            std_dev_ms: 0.0,
+                            min_ms: 0.0,
+                            max_ms: 0.0,
                             duration_autocorrelation: vec![],
                             clustering_coefficient: 0.0,
                         },
@@ -2342,12 +2460,22 @@ mod tests {
                     },
                     duration_analysis: BarDurationAnalysis {
                         duration_stats: BasicStats {
-                            mean: 0.0, std_dev: 0.0, skewness: 0.0, kurtosis: 0.0,
-                            jarque_bera_test: 0.0, jarque_bera_p_value: 0.0,
+                            mean: 0.0,
+                            std_dev: 0.0,
+                            skewness: 0.0,
+                            kurtosis: 0.0,
+                            jarque_bera_test: 0.0,
+                            jarque_bera_p_value: 0.0,
                         },
                         duration_percentiles: Percentiles {
-                            p1: 0.0, p5: 0.0, p10: 0.0, p25: 0.0,
-                            p75: 0.0, p90: 0.0, p95: 0.0, p99: 0.0,
+                            p1: 0.0,
+                            p5: 0.0,
+                            p10: 0.0,
+                            p25: 0.0,
+                            p75: 0.0,
+                            p90: 0.0,
+                            p95: 0.0,
+                            p99: 0.0,
                         },
                         extreme_durations: ExtremeDurationAnalysis {
                             shortest_duration_seconds: 0.0,
@@ -2374,8 +2502,12 @@ mod tests {
                     },
                     volume_analysis: BarVolumeAnalysis {
                         volume_stats: BasicStats {
-                            mean: 0.0, std_dev: 0.0, skewness: 0.0, kurtosis: 0.0,
-                            jarque_bera_test: 0.0, jarque_bera_p_value: 0.0,
+                            mean: 0.0,
+                            std_dev: 0.0,
+                            skewness: 0.0,
+                            kurtosis: 0.0,
+                            jarque_bera_test: 0.0,
+                            jarque_bera_p_value: 0.0,
                         },
                         volume_efficiency: VolumeEfficiencyAnalysis {
                             volume_per_price_move: 0.0,
@@ -2419,12 +2551,20 @@ mod tests {
                         },
                         momentum_analysis: MomentumAnalysis {
                             momentum_strength: BasicStats {
-                                mean: 0.0, std_dev: 0.0, skewness: 0.0, kurtosis: 0.0,
-                                jarque_bera_test: 0.0, jarque_bera_p_value: 0.0,
+                                mean: 0.0,
+                                std_dev: 0.0,
+                                skewness: 0.0,
+                                kurtosis: 0.0,
+                                jarque_bera_test: 0.0,
+                                jarque_bera_p_value: 0.0,
                             },
                             momentum_duration: BasicStats {
-                                mean: 0.0, std_dev: 0.0, skewness: 0.0, kurtosis: 0.0,
-                                jarque_bera_test: 0.0, jarque_bera_p_value: 0.0,
+                                mean: 0.0,
+                                std_dev: 0.0,
+                                skewness: 0.0,
+                                kurtosis: 0.0,
+                                jarque_bera_test: 0.0,
+                                jarque_bera_p_value: 0.0,
                             },
                             anti_momentum_frequency: 0.0,
                             momentum_predictability: 0.0,
@@ -2658,8 +2798,14 @@ mod tests {
                         max_rounding_error: 0.0,
                         avg_rounding_error: 0.0,
                         rounding_error_distribution: Percentiles {
-                            p1: 0.0, p5: 0.0, p10: 0.0, p25: 0.0,
-                            p75: 0.0, p90: 0.0, p95: 0.0, p99: 0.0,
+                            p1: 0.0,
+                            p5: 0.0,
+                            p10: 0.0,
+                            p25: 0.0,
+                            p75: 0.0,
+                            p90: 0.0,
+                            p95: 0.0,
+                            p99: 0.0,
                         },
                     },
                     format_consistency: FormatConsistencyStats {
@@ -2778,7 +2924,7 @@ mod tests {
             },
             extensions: HashMap::new(),
         };
-        
+
         let json = serde_json::to_string_pretty(&metadata);
         assert!(json.is_ok());
     }

@@ -1,0 +1,60 @@
+# Dependabot configuration for automated dependency updates
+version: 2
+updates:
+  # Cargo dependencies
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "UTC"
+    reviewers:
+      - "@terryli"  # Adjust to your GitHub username
+    assignees:
+      - "@terryli"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "rust"
+    open-pull-requests-limit: 5
+    # Group related updates
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security-update"
+      polars-ecosystem:
+        patterns:
+          - "polars*"
+        update-types:
+          - "minor"
+          - "patch"
+      crypto-hashing:
+        patterns:
+          - "sha2"
+          - "md5"
+          - "crc32fast"
+        update-types:
+          - "patch"
+      statistics:
+        patterns:
+          - "statrs"
+          - "quantiles"
+          - "nalgebra"
+        update-types:
+          - "patch"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "ci/cd"
+      - "github-actions"

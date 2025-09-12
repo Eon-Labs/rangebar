@@ -10,13 +10,13 @@ use zip::ZipArchive;
 
 // Data integrity support
 #[cfg(feature = "data-integrity")]
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 // Use library types and statistics module
-use rangebar_rust::{AggTrade, RangeBar, FixedPoint, RangeBarProcessor};
+use rangebar_rust::{AggTrade, FixedPoint, RangeBar, RangeBarProcessor};
 
 #[cfg(feature = "statistics")]
-use rangebar_rust::statistics::{StatisticalEngine, StatisticalConfig, RangeBarMetadata};
+use rangebar_rust::statistics::{RangeBarMetadata, StatisticalConfig, StatisticalEngine};
 
 // Enhanced output result with comprehensive metadata
 #[derive(Debug, Serialize)]
@@ -24,11 +24,11 @@ struct EnhancedExportResult {
     /// Basic export information (existing)
     #[serde(flatten)]
     pub basic_result: ExportResult,
-    
+
     /// Comprehensive metadata (if statistics feature enabled)
     #[cfg(feature = "statistics")]
     pub metadata: Option<RangeBarMetadata>,
-    
+
     /// File format information
     pub files: ExportedFiles,
 }
@@ -37,7 +37,7 @@ struct EnhancedExportResult {
 struct ExportedFiles {
     /// Primary data files
     pub data_files: Vec<ExportedFile>,
-    
+
     /// Metadata files
     pub metadata_files: Vec<ExportedFile>,
 }
@@ -70,20 +70,40 @@ struct MarketAwareRangeBar {
 
 #[derive(Debug, Deserialize)]
 struct CsvAggTrade {
+    agg_trade_id: u64,
     price: f64,
     quantity: f64,
-    transact_time: u64,
+    first_trade_id: u64,
+    last_trade_id: u64,
+    timestamp: u64,
+    #[serde(deserialize_with = "python_bool")]
+    is_buyer_maker: bool,
+    #[serde(deserialize_with = "python_bool")]
+    is_best_match: bool,
+}
+
+/// Custom deserializer for Python-style booleans (True/False)
+fn python_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    match s.as_str() {
+        "True" => Ok(true),
+        "False" => Ok(false),
+        _ => Err(serde::de::Error::custom(format!("Invalid boolean value: {}", s))),
+    }
 }
 
 impl From<CsvAggTrade> for AggTrade {
     fn from(csv_trade: CsvAggTrade) -> Self {
         AggTrade {
-            agg_trade_id: 0, // CSV doesn't have this field - set to 0
+            agg_trade_id: csv_trade.agg_trade_id as i64,
             price: FixedPoint::from_str(&csv_trade.price.to_string()).unwrap_or(FixedPoint(0)),
             volume: FixedPoint::from_str(&csv_trade.quantity.to_string()).unwrap_or(FixedPoint(0)),
-            first_trade_id: 0, // CSV doesn't have this field - set to 0
-            last_trade_id: 0, // CSV doesn't have this field - set to 0
-            timestamp: csv_trade.transact_time as i64,
+            first_trade_id: csv_trade.first_trade_id as i64,
+            last_trade_id: csv_trade.last_trade_id as i64,
+            timestamp: csv_trade.timestamp as i64,
         }
     }
 }
@@ -120,31 +140,30 @@ impl ExportRangeBarProcessor {
             bar_counter: 0,
         }
     }
-    
+
     fn process_trades(&mut self, trades: &[AggTrade]) -> Vec<RangeBar> {
         for trade in trades {
             self.process_single_trade(trade.clone());
         }
-        
+
         let result = self.completed_bars.clone();
         self.completed_bars.clear();
         result
     }
-    
+
     fn process_trades_continuously(&mut self, trades: &[AggTrade]) {
         for trade in trades {
             self.process_single_trade(trade.clone());
         }
         // DO NOT clear completed_bars - maintain state for continuous processing
     }
-    
+
     fn get_all_completed_bars(&mut self) -> Vec<RangeBar> {
         let result = self.completed_bars.clone();
         self.completed_bars.clear();
         result
     }
-    
-    
+
     fn process_single_trade(&mut self, trade: AggTrade) {
         if self.current_bar.is_none() {
             // Start new bar
@@ -163,9 +182,9 @@ impl ExportRangeBarProcessor {
             });
             return;
         }
-        
+
         let bar = self.current_bar.as_mut().unwrap();
-        
+
         // Update bar with new trade
         bar.close_time = trade.timestamp;
         bar.close = trade.price.clone();
@@ -173,29 +192,28 @@ impl ExportRangeBarProcessor {
         bar.turnover += trade.turnover();
         bar.trade_count += trade.trade_count();
         bar.last_id = trade.agg_trade_id;
-        
+
         if trade.price.0 > bar.high.0 {
             bar.high = trade.price.clone();
         }
         if trade.price.0 < bar.low.0 {
             bar.low = trade.price.clone();
         }
-        
+
         // Check for breach - convert fixed-point to f64 first
         let open_price = bar.open.to_f64();
         let current_price = trade.price.to_f64();
         let threshold_pct = self.threshold_bps as f64 / 1_000_000.0;
-        
+
         let upper_threshold = open_price * (1.0 + threshold_pct);
         let lower_threshold = open_price * (1.0 - threshold_pct);
-        
-        
+
         if current_price >= upper_threshold || current_price <= lower_threshold {
             // Bar is complete - convert to export format
             let completed_bar = self.current_bar.take().unwrap();
-            
+
             self.bar_counter += 1;
-            
+
             let export_bar = RangeBar {
                 open_time: completed_bar.open_time,
                 close_time: completed_bar.close_time,
@@ -209,9 +227,9 @@ impl ExportRangeBarProcessor {
                 first_id: completed_bar.first_id,
                 last_id: completed_bar.last_id,
             };
-            
+
             self.completed_bars.push(export_bar);
-            
+
             // Start new bar
             self.current_bar = Some(InternalRangeBar {
                 open_time: trade.timestamp,
@@ -228,7 +246,7 @@ impl ExportRangeBarProcessor {
             });
         }
     }
-    
+
     fn get_incomplete_bar(&mut self) -> Option<RangeBar> {
         if let Some(incomplete) = &self.current_bar {
             Some(RangeBar {
@@ -266,16 +284,27 @@ struct ExportResult {
 struct RangeBarExporter {
     client: Client,
     output_dir: String,
+    market_type: String,
 }
 
 impl RangeBarExporter {
-    fn new(output_dir: String) -> Self {
+    fn new(output_dir: String, market_type: String) -> Self {
         // Create output directory if it doesn't exist
         fs::create_dir_all(&output_dir).unwrap();
-        
+
         Self {
             client: Client::new(),
             output_dir,
+            market_type,
+        }
+    }
+    
+    /// Build the URL path based on market type
+    fn get_market_path(&self) -> &str {
+        match self.market_type.as_str() {
+            "spot" => "spot",
+            "um" => "futures/um",
+            _ => "spot", // Default fallback
         }
     }
 
@@ -291,11 +320,11 @@ impl RangeBarExporter {
         let mut all_range_bars = Vec::new();
         let mut total_trades = 0u64;
         let mut current_date = start_date;
-        
+
         // Initialize statistical engine for comprehensive analysis
         #[cfg(feature = "statistics")]
         let mut statistical_engine = rangebar_rust::statistics::StatisticalEngine::new();
-        
+
         #[cfg(feature = "statistics")]
         let mut all_raw_trades = Vec::new(); // Collect raw trades for statistical analysis
 
@@ -310,61 +339,115 @@ impl RangeBarExporter {
         println!("   🔄 Phase 1: Collecting trades chronologically...");
         while current_date <= end_date {
             print!("   📊 Loading {}...\r", current_date.format("%Y-%m-%d"));
-            
+
             #[cfg(feature = "statistics")]
-            match self.load_single_day_trades(symbol, current_date, &mut all_raw_trades).await {
+            match self
+                .load_single_day_trades(symbol, current_date, &mut all_raw_trades)
+                .await
+            {
                 Ok(trades_count) => {
                     total_trades += trades_count;
-                    println!("   📊 {} {} → {} trades loaded (total: {})",
-                        symbol, current_date.format("%Y-%m-%d"), 
-                        trades_count, total_trades);
+                    println!(
+                        "   📊 {} {} → {} trades loaded (total: {})",
+                        symbol,
+                        current_date.format("%Y-%m-%d"),
+                        trades_count,
+                        total_trades
+                    );
                 }
                 Err(e) => {
-                    eprintln!("   ⚠️  {} {}: {}", symbol, current_date.format("%Y-%m-%d"), e);
+                    eprintln!(
+                        "   ⚠️  {} {}: {}",
+                        symbol,
+                        current_date.format("%Y-%m-%d"),
+                        e
+                    );
                 }
             }
-            
+
             #[cfg(not(feature = "statistics"))]
-            match self.load_single_day_trades_simple(symbol, current_date, threshold_pct, &mut all_range_bars).await {
+            match self
+                .load_single_day_trades_simple(
+                    symbol,
+                    current_date,
+                    threshold_pct,
+                    &mut all_range_bars,
+                )
+                .await
+            {
                 Ok(trades_count) => {
                     total_trades += trades_count;
-                    println!("   📊 {} {} → {} trades loaded (total: {})",
-                        symbol, current_date.format("%Y-%m-%d"), 
-                        trades_count, total_trades);
+                    println!(
+                        "   📊 {} {} → {} trades loaded (total: {})",
+                        symbol,
+                        current_date.format("%Y-%m-%d"),
+                        trades_count,
+                        total_trades
+                    );
                 }
                 Err(e) => {
-                    eprintln!("   ⚠️  {} {}: {}", symbol, current_date.format("%Y-%m-%d"), e);
+                    eprintln!(
+                        "   ⚠️  {} {}: {}",
+                        symbol,
+                        current_date.format("%Y-%m-%d"),
+                        e
+                    );
                 }
             }
-            
+
             current_date += Duration::days(1);
         }
-        
+
         // PHASE 2: Process all trades continuously (maintaining state across day boundaries)
         #[cfg(feature = "statistics")]
         {
-            println!("\n   🔄 Phase 2: Processing {} trades continuously...", total_trades);
+            println!(
+                "\n   🔄 Phase 2: Processing {} trades continuously...",
+                total_trades
+            );
             processor.process_trades_continuously(&all_raw_trades);
             all_range_bars = processor.get_all_completed_bars();
-            println!("   ✅ Continuous processing complete: {} range bars generated", all_range_bars.len());
+            println!(
+                "   ✅ Continuous processing complete: {} range bars generated",
+                all_range_bars.len()
+            );
         }
 
         // PHASE 3: Add incomplete bar if exists (final bar may be incomplete)
         if let Some(incomplete_bar) = processor.get_incomplete_bar() {
             all_range_bars.push(incomplete_bar);
-            println!("   📊 Added final incomplete bar (total: {} bars)", all_range_bars.len());
+            println!(
+                "   📊 Added final incomplete bar (total: {} bars)",
+                all_range_bars.len()
+            );
         }
 
         let processing_time = start_time.elapsed().as_secs_f64();
 
         // Export to CSV and JSON
         let total_volume: f64 = all_range_bars.iter().map(|b| b.volume.to_f64()).sum();
-        let date_str = format!("{}_{}", start_date.format("%Y%m%d"), end_date.format("%Y%m%d"));
-        let csv_filename = format!("um_{}_rangebar_{}_{:.3}pct.csv", symbol, date_str, threshold_pct * 100.0);
-        let json_filename = format!("um_{}_rangebar_{}_{:.3}pct.json", symbol, date_str, threshold_pct * 100.0);
-        
+        let date_str = format!(
+            "{}_{}",
+            start_date.format("%Y%m%d"),
+            end_date.format("%Y%m%d")
+        );
+        let csv_filename = format!(
+            "{}{}_rangebar_{}_{:.3}pct.csv",
+            if self.market_type == "spot" { "" } else { &format!("{}_", self.market_type) },
+            symbol,
+            date_str,
+            threshold_pct * 100.0
+        );
+        let json_filename = format!(
+            "{}{}_rangebar_{}_{:.3}pct.json",
+            if self.market_type == "spot" { "" } else { &format!("{}_", self.market_type) },
+            symbol,
+            date_str,
+            threshold_pct * 100.0
+        );
+
         self.export_to_csv(&all_range_bars, &csv_filename)?;
-        
+
         // Generate comprehensive metadata with statistical analysis
         #[cfg(feature = "statistics")]
         let metadata = {
@@ -379,10 +462,10 @@ impl RangeBarExporter {
             );
             metadata_result.ok()
         };
-        
+
         #[cfg(not(feature = "statistics"))]
         let metadata = None;
-        
+
         self.export_to_json_with_metadata(&all_range_bars, &json_filename, metadata.as_ref())?;
 
         println!("\n✅ Export Complete!");
@@ -392,7 +475,7 @@ impl RangeBarExporter {
         println!("   ⚡ Processing Time: {:.1}s", processing_time);
         println!("   📄 CSV: {}/{}", self.output_dir, csv_filename);
         println!("   📄 JSON: {}/{}", self.output_dir, json_filename);
-        
+
         #[cfg(feature = "statistics")]
         if metadata.is_some() {
             println!("   🔬 Statistical Analysis: 200+ metrics included in JSON");
@@ -401,7 +484,10 @@ impl RangeBarExporter {
         let basic_result = ExportResult {
             symbol: symbol.to_string(),
             threshold_pct,
-            date_range: (start_date.format("%Y-%m-%d").to_string(), end_date.format("%Y-%m-%d").to_string()),
+            date_range: (
+                start_date.format("%Y-%m-%d").to_string(),
+                end_date.format("%Y-%m-%d").to_string(),
+            ),
             total_bars: all_range_bars.len(),
             total_trades,
             total_volume,
@@ -409,20 +495,20 @@ impl RangeBarExporter {
             csv_file: csv_filename.clone(),
             json_file: json_filename.clone(),
         };
-        
+
         let files = ExportedFiles {
             data_files: vec![
                 ExportedFile {
                     filename: csv_filename,
                     format: "csv".to_string(),
                     size_bytes: 0, // TODO: Get actual file size
-                    market_type: "um".to_string(),
+                    market_type: self.market_type.clone(),
                 },
                 ExportedFile {
                     filename: json_filename,
                     format: "json".to_string(),
-                    size_bytes: 0, // TODO: Get actual file size  
-                    market_type: "um".to_string(),
+                    size_bytes: 0, // TODO: Get actual file size
+                    market_type: self.market_type.clone(),
                 },
             ],
             metadata_files: vec![],
@@ -444,35 +530,37 @@ impl RangeBarExporter {
     ) -> Result<(u64, Vec<RangeBar>), Box<dyn std::error::Error + Send + Sync>> {
         let date_str = date.format("%Y-%m-%d");
         let url = format!(
-            "https://data.binance.vision/data/futures/um/daily/aggTrades/{}/{}-aggTrades-{}.zip",
-            symbol, symbol, date_str
+            "https://data.binance.vision/data/{}/daily/aggTrades/{}/{}-aggTrades-{}.zip",
+            self.get_market_path(), symbol, symbol, date_str
         );
 
         let response = tokio::time::timeout(
             tokio::time::Duration::from_secs(30),
-            self.client.get(&url).send()
-        ).await??;
+            self.client.get(&url).send(),
+        )
+        .await??;
 
         if !response.status().is_success() {
             return Err(format!("HTTP {}", response.status()).into());
         }
 
         let zip_bytes = response.bytes().await?;
-        
+
         // Verify data integrity using SHA256 checksum
-        self.verify_file_integrity(&zip_bytes, symbol, &date_str.to_string()).await?;
-        
+        self.verify_file_integrity(&zip_bytes, symbol, &date_str.to_string())
+            .await?;
+
         let cursor = Cursor::new(zip_bytes);
         let mut archive = ZipArchive::new(cursor)?;
-        
+
         let csv_filename = format!("{}-aggTrades-{}.csv", symbol, date_str);
         let mut csv_file = archive.by_name(&csv_filename)?;
-        
+
         let mut buffer = String::with_capacity(8 * 1024 * 1024);
         csv_file.read_to_string(&mut buffer)?;
-        
+
         let mut reader = ReaderBuilder::new()
-            .has_headers(true)
+            .has_headers(false)
             .from_reader(buffer.as_bytes());
 
         let mut all_trades = Vec::new();
@@ -487,9 +575,9 @@ impl RangeBarExporter {
 
         Ok((trades_count, completed_bars))
     }
-    
+
     // DATA INTEGRITY VERIFICATION METHODS
-    
+
     /// Download and verify SHA256 checksum for a data file
     #[cfg(feature = "data-integrity")]
     async fn verify_file_integrity(
@@ -500,39 +588,46 @@ impl RangeBarExporter {
     ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         // Download the corresponding CHECKSUM file
         let checksum_url = format!(
-            "https://data.binance.vision/data/futures/um/daily/aggTrades/{}/{}-aggTrades-{}.zip.CHECKSUM",
-            symbol, symbol, date_str
+            "https://data.binance.vision/data/{}/daily/aggTrades/{}/{}-aggTrades-{}.zip.CHECKSUM",
+            self.get_market_path(), symbol, symbol, date_str
         );
-        
+
         let response = tokio::time::timeout(
             tokio::time::Duration::from_secs(10),
-            self.client.get(&checksum_url).send()
-        ).await??;
-        
+            self.client.get(&checksum_url).send(),
+        )
+        .await??;
+
         if !response.status().is_success() {
             return Err(format!("Failed to download checksum: HTTP {}", response.status()).into());
         }
-        
+
         let checksum_text = response.text().await?;
-        let expected_hash = checksum_text.split_whitespace().next()
+        let expected_hash = checksum_text
+            .split_whitespace()
+            .next()
             .ok_or("Invalid checksum format")?;
-        
+
         // Compute SHA256 of the downloaded zip data
         let mut hasher = Sha256::new();
         hasher.update(zip_data);
         let computed_hash = format!("{:x}", hasher.finalize());
-        
+
         if computed_hash != expected_hash {
             return Err(format!(
                 "SHA256 mismatch for {}-aggTrades-{}.zip: expected {}, got {}",
                 symbol, date_str, expected_hash, computed_hash
-            ).into());
+            )
+            .into());
         }
-        
-        println!("✓ SHA256 verification passed for {}-aggTrades-{}.zip", symbol, date_str);
+
+        println!(
+            "✓ SHA256 verification passed for {}-aggTrades-{}.zip",
+            symbol, date_str
+        );
         Ok(true)
     }
-    
+
     /// Fallback for when data-integrity feature is disabled
     #[cfg(not(feature = "data-integrity"))]
     async fn verify_file_integrity(
@@ -541,12 +636,15 @@ impl RangeBarExporter {
         symbol: &str,
         date_str: &str,
     ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
-        println!("⚠ SHA256 verification skipped for {}-aggTrades-{}.zip (data-integrity feature disabled)", symbol, date_str);
+        println!(
+            "⚠ SHA256 verification skipped for {}-aggTrades-{}.zip (data-integrity feature disabled)",
+            symbol, date_str
+        );
         Ok(true)
     }
-    
+
     // CONTINUOUS PROCESSING METHODS FOR DAY-BOUNDARY CONTINUITY
-    
+
     #[cfg(feature = "statistics")]
     async fn load_single_day_trades(
         &self,
@@ -556,35 +654,37 @@ impl RangeBarExporter {
     ) -> Result<u64, Box<dyn std::error::Error + Send + Sync>> {
         let date_str = date.format("%Y-%m-%d");
         let url = format!(
-            "https://data.binance.vision/data/futures/um/daily/aggTrades/{}/{}-aggTrades-{}.zip",
-            symbol, symbol, date_str
+            "https://data.binance.vision/data/{}/daily/aggTrades/{}/{}-aggTrades-{}.zip",
+            self.get_market_path(), symbol, symbol, date_str
         );
 
         let response = tokio::time::timeout(
             tokio::time::Duration::from_secs(30),
-            self.client.get(&url).send()
-        ).await??;
+            self.client.get(&url).send(),
+        )
+        .await??;
 
         if !response.status().is_success() {
             return Err(format!("HTTP {}", response.status()).into());
         }
 
         let zip_bytes = response.bytes().await?;
-        
+
         // Verify data integrity using SHA256 checksum
-        self.verify_file_integrity(&zip_bytes, symbol, &date_str.to_string()).await?;
-        
+        self.verify_file_integrity(&zip_bytes, symbol, &date_str.to_string())
+            .await?;
+
         let cursor = Cursor::new(zip_bytes);
         let mut archive = ZipArchive::new(cursor)?;
-        
+
         let csv_filename = format!("{}-aggTrades-{}.csv", symbol, date_str);
         let mut csv_file = archive.by_name(&csv_filename)?;
-        
+
         let mut buffer = String::with_capacity(8 * 1024 * 1024);
         csv_file.read_to_string(&mut buffer)?;
-        
+
         let mut reader = ReaderBuilder::new()
-            .has_headers(true)
+            .has_headers(false)
             .from_reader(buffer.as_bytes());
 
         let mut day_trades = Vec::new();
@@ -596,13 +696,13 @@ impl RangeBarExporter {
 
         // Sort by timestamp to ensure chronological order for continuous processing
         day_trades.sort_by_key(|trade| trade.timestamp);
-        
+
         let trades_count = day_trades.len() as u64;
         all_raw_trades.extend(day_trades);
 
         Ok(trades_count)
     }
-    
+
     #[cfg(not(feature = "statistics"))]
     async fn load_single_day_trades_simple(
         &self,
@@ -614,38 +714,40 @@ impl RangeBarExporter {
         // Fallback for when statistics feature is disabled
         // This method maintains the old day-by-day processing for compatibility
         let mut temp_processor = ExportRangeBarProcessor::new((threshold_pct * 1_000_000.0) as u32);
-        
+
         let date_str = date.format("%Y-%m-%d");
         let url = format!(
-            "https://data.binance.vision/data/futures/um/daily/aggTrades/{}/{}-aggTrades-{}.zip",
-            symbol, symbol, date_str
+            "https://data.binance.vision/data/{}/daily/aggTrades/{}/{}-aggTrades-{}.zip",
+            self.get_market_path(), symbol, symbol, date_str
         );
 
         let response = tokio::time::timeout(
             tokio::time::Duration::from_secs(30),
-            self.client.get(&url).send()
-        ).await??;
+            self.client.get(&url).send(),
+        )
+        .await??;
 
         if !response.status().is_success() {
             return Err(format!("HTTP {}", response.status()).into());
         }
 
         let zip_bytes = response.bytes().await?;
-        
+
         // Verify data integrity using SHA256 checksum
-        self.verify_file_integrity(&zip_bytes, symbol, &date_str.to_string()).await?;
-        
+        self.verify_file_integrity(&zip_bytes, symbol, &date_str.to_string())
+            .await?;
+
         let cursor = Cursor::new(zip_bytes);
         let mut archive = ZipArchive::new(cursor)?;
-        
+
         let csv_filename = format!("{}-aggTrades-{}.csv", symbol, date_str);
         let mut csv_file = archive.by_name(&csv_filename)?;
-        
+
         let mut buffer = String::with_capacity(8 * 1024 * 1024);
         csv_file.read_to_string(&mut buffer)?;
-        
+
         let mut reader = ReaderBuilder::new()
-            .has_headers(true)
+            .has_headers(false)
             .from_reader(buffer.as_bytes());
 
         let mut day_trades = Vec::new();
@@ -671,35 +773,37 @@ impl RangeBarExporter {
     ) -> Result<(u64, Vec<RangeBar>), Box<dyn std::error::Error + Send + Sync>> {
         let date_str = date.format("%Y-%m-%d");
         let url = format!(
-            "https://data.binance.vision/data/futures/um/daily/aggTrades/{}/{}-aggTrades-{}.zip",
-            symbol, symbol, date_str
+            "https://data.binance.vision/data/{}/daily/aggTrades/{}/{}-aggTrades-{}.zip",
+            self.get_market_path(), symbol, symbol, date_str
         );
 
         let response = tokio::time::timeout(
             tokio::time::Duration::from_secs(30),
-            self.client.get(&url).send()
-        ).await??;
+            self.client.get(&url).send(),
+        )
+        .await??;
 
         if !response.status().is_success() {
             return Err(format!("HTTP {}", response.status()).into());
         }
 
         let zip_bytes = response.bytes().await?;
-        
+
         // Verify data integrity using SHA256 checksum
-        self.verify_file_integrity(&zip_bytes, symbol, &date_str.to_string()).await?;
-        
+        self.verify_file_integrity(&zip_bytes, symbol, &date_str.to_string())
+            .await?;
+
         let cursor = Cursor::new(zip_bytes);
         let mut archive = ZipArchive::new(cursor)?;
-        
+
         let csv_filename = format!("{}-aggTrades-{}.csv", symbol, date_str);
         let mut csv_file = archive.by_name(&csv_filename)?;
-        
+
         let mut buffer = String::with_capacity(8 * 1024 * 1024);
         csv_file.read_to_string(&mut buffer)?;
-        
+
         let mut reader = ReaderBuilder::new()
-            .has_headers(true)
+            .has_headers(false)
             .from_reader(buffer.as_bytes());
 
         let mut day_trades = Vec::new();
@@ -716,36 +820,44 @@ impl RangeBarExporter {
         Ok((trades_count, completed_bars))
     }
 
-    fn export_to_csv(&self, bars: &[RangeBar], filename: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn export_to_csv(
+        &self,
+        bars: &[RangeBar],
+        filename: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let filepath = Path::new(&self.output_dir).join(filename);
         let mut wtr = WriterBuilder::new().from_path(filepath)?;
-        
+
         for bar in bars {
             wtr.serialize(bar)?;
         }
-        
+
         wtr.flush()?;
         Ok(())
     }
 
-    fn export_to_json(&self, bars: &[RangeBar], filename: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn export_to_json(
+        &self,
+        bars: &[RangeBar],
+        filename: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let filepath = Path::new(&self.output_dir).join(filename);
         let json_content = serde_json::to_string_pretty(bars)?;
         fs::write(filepath, json_content)?;
         Ok(())
     }
-    
+
     #[cfg(feature = "statistics")]
     fn export_to_json_with_metadata(
-        &self, 
-        bars: &[RangeBar], 
-        filename: &str, 
-        metadata: Option<&rangebar_rust::statistics::RangeBarMetadata>
+        &self,
+        bars: &[RangeBar],
+        filename: &str,
+        metadata: Option<&rangebar_rust::statistics::RangeBarMetadata>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        use serde_json::{json, Value};
-        
+        use serde_json::{Value, json};
+
         let filepath = Path::new(&self.output_dir).join(filename);
-        
+
         let comprehensive_export = if let Some(meta) = metadata {
             // Create comprehensive JSON with metadata and range bars
             json!({
@@ -755,8 +867,8 @@ impl RangeBarExporter {
                 "range_bars": bars,
                 "summary": {
                     "total_bars": bars.len(),
-                    "date_range": format!("{} to {}", 
-                        meta.dataset.temporal.start_date, 
+                    "date_range": format!("{} to {}",
+                        meta.dataset.temporal.start_date,
                         meta.dataset.temporal.end_date),
                     "symbol": meta.dataset.instrument.symbol,
                     "market_type": meta.dataset.instrument.venue,
@@ -777,18 +889,18 @@ impl RangeBarExporter {
                 }
             })
         };
-        
+
         let json_content = serde_json::to_string_pretty(&comprehensive_export)?;
         fs::write(filepath, json_content)?;
         Ok(())
     }
-    
-    #[cfg(not(feature = "statistics"))]  
+
+    #[cfg(not(feature = "statistics"))]
     fn export_to_json_with_metadata(
-        &self, 
-        bars: &[RangeBar], 
-        filename: &str, 
-        _metadata: Option<&()>
+        &self,
+        bars: &[RangeBar],
+        filename: &str,
+        _metadata: Option<&()>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Fallback when statistics feature is disabled
         self.export_to_json(bars, filename)
@@ -798,9 +910,29 @@ impl RangeBarExporter {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
-    if args.len() != 6 {
-        eprintln!("Usage: {} <symbol> <start_date> <end_date> <threshold_pct> <output_dir>", args[0]);
-        eprintln!("Example: {} BTCUSDT 2025-09-01 2025-09-09 0.008 ./output", args[0]);
+    if args.len() < 6 || args.len() > 7 {
+        eprintln!(
+            "Usage: {} <symbol> <start_date> <end_date> <threshold_pct> <output_dir> [market_type]",
+            args[0]
+        );
+        eprintln!(
+            "Market types: spot (default), um (UM Futures)"
+        );
+        eprintln!(
+            "Examples:"
+        );
+        eprintln!(
+            "  {} BTCUSDT 2025-09-01 2025-09-09 0.008 ./output           # SPOT (default)",
+            args[0]
+        );
+        eprintln!(
+            "  {} BTCUSDT 2025-09-01 2025-09-09 0.008 ./output spot      # SPOT (explicit)",
+            args[0]
+        );
+        eprintln!(
+            "  {} BTCUSDT 2025-09-01 2025-09-09 0.008 ./output um        # UM Futures",
+            args[0]
+        );
         std::process::exit(1);
     }
 
@@ -809,10 +941,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let end_date = NaiveDate::parse_from_str(&args[3], "%Y-%m-%d")?;
     let threshold_pct: f64 = args[4].parse()?;
     let output_dir = args[5].clone();
+    
+    // Default to "spot", optional "um" for UM Futures  
+    let market_type = if args.len() == 7 {
+        match args[6].as_str() {
+            "spot" | "um" => args[6].clone(),
+            _ => {
+                eprintln!("Error: market_type must be 'spot' or 'um', got '{}'", args[6]);
+                std::process::exit(1);
+            }
+        }
+    } else {
+        "spot".to_string()
+    };
 
-    let exporter = RangeBarExporter::new(output_dir);
-    let result = exporter.export_symbol_range_bars(symbol, start_date, end_date, threshold_pct).await
-        .map_err(|e| -> Box<dyn std::error::Error> { Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())) })?;
+    let exporter = RangeBarExporter::new(output_dir, market_type);
+    let result = exporter
+        .export_symbol_range_bars(symbol, start_date, end_date, threshold_pct)
+        .await
+        .map_err(|e| -> Box<dyn std::error::Error> {
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ))
+        })?;
 
     // Export enhanced summary information
     let summary_file = format!("{}/export_summary.json", exporter.output_dir);

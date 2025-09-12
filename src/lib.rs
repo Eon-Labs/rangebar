@@ -1,25 +1,24 @@
 //! Rangebar Rust Library
-//! 
+//!
 //! High-performance range bar construction with comprehensive statistical analysis
 //! and market microstructure metrics for financial time series data.
 
 pub mod fixed_point;
-pub mod types;
 pub mod range_bars;
+pub mod types;
 
 #[cfg(feature = "statistics")]
 pub mod statistics;
 
 // Re-export commonly used types for convenience
 pub use fixed_point::FixedPoint;
+pub use range_bars::{ProcessingError, RangeBarProcessor};
 pub use types::{AggTrade, RangeBar};
-pub use range_bars::{RangeBarProcessor, ProcessingError};
 
 #[cfg(feature = "statistics")]
 pub use statistics::{
-    RangeBarMetadata, StatisticalEngine, StatisticalConfig,
-    DatasetInfo, AlgorithmConfig, Statistics,
-    PerformanceMetrics, QualityMetrics, FormatMetadata,
+    AlgorithmConfig, DatasetInfo, FormatMetadata, PerformanceMetrics, QualityMetrics,
+    RangeBarMetadata, StatisticalConfig, StatisticalEngine, Statistics,
 };
 
 /// Version information
@@ -55,6 +54,6 @@ mod tests {
     fn test_statistics_export() {
         // Test that statistics module is accessible
         let engine = StatisticalEngine::new();
-        assert!(engine.config.parallel_computation);
+        assert!(engine.config().parallel_computation);
     }
 }

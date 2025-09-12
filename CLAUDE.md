@@ -76,6 +76,13 @@ lower_breach = bar_open * 0.992
    - Check: `tick_price >= upper_breach OR tick_price <= lower_breach`
 4. If breach: Include breach tick in bar, close bar, next tick opens new bar
 
+### Critical Validation Logic
+**Breach Consistency Rule**: If `high >= upper_threshold` OR `low <= lower_threshold`, then `close` must also breach the same threshold.
+
+**Rationale**: The breaching trade that triggers bar closure becomes the close price. If high/low breach but close doesn't, it indicates the breaching trade was not properly included in the closing bar.
+
+**Validation**: `(high_breach → close_breach) AND (low_breach → close_breach)`
+
 ### Data Source Requirements
 - **Source**: https://github.com/stas-prokopiev/binance_historical_data
 - **Asset Class**: `"um"` (USD-M Futures) **ONLY**

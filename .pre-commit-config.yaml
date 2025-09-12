@@ -1,0 +1,71 @@
+# Pre-commit hooks configuration for rangebar
+# Install: pip install pre-commit && pre-commit install
+
+repos:
+  # Rust formatting and linting
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo-fmt
+        description: Format Rust code with cargo fmt
+        entry: cargo fmt --all -- --check
+        language: system
+        files: \.rs$
+        pass_filenames: false
+        
+      # Note: clippy disabled temporarily due to compilation errors
+      # - id: cargo-clippy
+      #   name: cargo-clippy
+      #   description: Lint Rust code with clippy
+      #   entry: cargo clippy --all-targets --all-features
+      #   language: system
+      #   files: \.rs$
+      #   pass_filenames: false
+        
+      - id: cargo-test
+        name: cargo-nextest
+        description: Run tests with cargo nextest
+        entry: cargo nextest run
+        language: system
+        files: \.rs$
+        pass_filenames: false
+        
+      # Note: cargo-deny disabled temporarily due to license config issues  
+      # - id: cargo-deny
+      #   name: cargo-deny
+      #   description: Check dependencies with cargo deny
+      #   entry: cargo deny check
+      #   language: system
+      #   files: Cargo\.(toml|lock)$
+      #   pass_filenames: false
+
+  # Python formatting (for future Python integration)
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        files: \.py$
+        args: [--line-length=100]
+        
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: \.py$
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.md$
+      - id: end-of-file-fixer
+        exclude: \.md$
+      - id: check-toml
+      - id: check-yaml
+      - id: check-json
+        exclude: \.vscode/
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict

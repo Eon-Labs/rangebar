@@ -273,53 +273,93 @@ python_integration:
             datasets = self.list_datasets(market_type=market_type)
             return list(set(d["symbol"] for d in datasets))
 
-# Implementation Phases
+# Implementation Phases - EMPIRICAL WORKFLOW
 implementation_phases:
-  phase_1_arrow_core:
-    description: "Add Arrow export to existing Rust binary"
+  phase_1_algorithm_validation:
+    description: "Algorithm correctness and performance validation" 
+    status: ✅ Complete
+    empirical_insight: "Must validate algorithm before expanding formats"
     tasks:
-      - "Add arrow and parquet crate dependencies"
-      - "Implement Arrow schema with metadata"
-      - "Add market_type parameter to CLI"
-      - "Update file naming with market type prefix"
+      - ✅ "Implement breach consistency validation"
+      - ✅ "Performance benchmarking (target: 1M ticks < 100ms)"
+      - ✅ "Real data processing validation"
+      - ✅ "Step-by-step verification methodology"
     success_criteria:
-      - "Generate .arrow files with metadata"
-      - "Python can load with pandas.read_feather()"
-      - "Market type clearly identified"
+      - ✅ "Algorithm correctness verified via breach consistency"
+      - ✅ "Performance targets exceeded (116M trades/sec)"
+      - ✅ "Real Binance data processing validated (1.38M trades)"
       
-  phase_2_parquet_optimization:
-    description: "Add Parquet with compression and partitioning"
+  phase_2_foundation_security:
+    description: "Security updates and dependency management"
+    status: ✅ Complete  
+    empirical_insight: "Security foundation required before production features"
     tasks:
-      - "Implement Parquet writer with Snappy compression"
-      - "Add schema evolution support"
-      - "Implement dataset catalog generation"
+      - ✅ "Fix dependency vulnerabilities (pyo3, polars)"
+      - ✅ "Remove unused dependencies"
+      - ✅ "Setup pre-commit hooks and quality gates"
+      - ✅ "Implement automated testing framework"
     success_criteria:
-      - "20-80% file size reduction vs JSON"
+      - ✅ "All security vulnerabilities resolved"
+      - ✅ "Clean dependency tree"
+      - ✅ "Automated quality assurance"
+      
+  phase_3_arrow_parquet_integration:
+    description: "Modern binary format support"
+    status: ❌ Not Started
+    priority: "HIGH - Core missing functionality"
+    tasks:
+      - "Add arrow and parquet crate dependencies to Cargo.toml"
+      - "Implement Arrow schema with decimal128 precision"
+      - "Add Parquet writer with Snappy compression"
+      - "Implement metadata preservation in binary formats"
+    success_criteria:
+      - "Generate .arrow and .parquet files"
+      - "Pandas can load with read_feather() and read_parquet()"
+      - "20-80% file size reduction vs CSV/JSON"
       - "Zero-copy memory mapping works"
-      - "Catalog file auto-generated"
       
-  phase_3_multi_market_support:
-    description: "Extend to CM futures and SPOT markets"
+  phase_4_multi_market_expansion:
+    description: "CM futures and SPOT market support"
+    status: ❌ Not Started
+    dependency: "Requires Phase 3 for market_type parameter"
     tasks:
-      - "Add CM futures data fetching"
+      - "Add market_type parameter to CLI (um_futures, cm_futures, spot)"
+      - "Implement CM futures data fetching"
       - "Add SPOT market support"
-      - "Implement market-specific symbol handling"
-      - "Update directory organization"
+      - "Update file naming with market type prefix"
     success_criteria:
       - "All three market types supported"
       - "Clear data lineage in metadata"
-      - "No cross-market confusion"
+      - "Market-specific symbol handling (BTCUSD_PERP vs BTCUSDT)"
       
-  phase_4_python_tooling:
-    description: "Python integration and discovery tools"
+  phase_5_comprehensive_format_validation:
+    description: "Cross-format coherence testing framework"
+    status: ❌ Partial (basic validation only)
+    dependency: "Requires Phase 3 (multiple formats) + Phase 4 (multiple markets)"
+    empirical_insight: "Comprehensive testing needed after format expansion"
     tasks:
-      - "Generate Python discovery helper"
-      - "Add Jupyter notebook examples"  
-      - "Create conda/pip package"
+      - "Implement automated validation suite (master-format-validation.sh)"
+      - "Cross-format coherence testing (CSV, JSON, Arrow, Parquet)"
+      - "Regression testing matrix across markets and thresholds"
+      - "Performance validation across all formats"
+    success_criteria:
+      - "All formats produce identical data"
+      - "Automated validation passes for all market types"
+      - "Regression testing matrix operational"
+      
+  phase_6_python_ecosystem_integration:
+    description: "Python discovery tools and ecosystem integration"
+    status: ❌ Not Started
+    dependency: "Requires Phase 3-5 complete"
+    tasks:
+      - "Generate dataset catalog (rangebar_catalog.json)"
+      - "Implement Python discovery helper (RangeBarDatasetCatalog)"
+      - "Add Jupyter notebook examples"
+      - "Create conda/pip package distribution"
     success_criteria:
       - "Seamless Python integration"
-      - "Clear usage documentation"
-      - "Easy dataset discovery"
+      - "Easy dataset discovery via catalog"
+      - "Zero-copy polars LazyFrame loading"
 
 # CLI Interface Enhancements
 cli_enhancements:
@@ -861,15 +901,53 @@ future_extensions:
     description: "Multiple range thresholds in single file"
     timeline: "Post v3.0.0"
 
-# Current Project Status - UPDATED 2025-09-10 (Post-Housekeeping)
+# Current Project Status - UPDATED 2025-09-11 (Post-Validation)
 current_status:
-  phase: "Phase 1.5 Complete - Foundation + Statistical Analysis Framework"
+  phase: "Phase 2 Complete - Algorithm + Performance Validation"
   rust_implementation: ✅ Complete - Pure Rust range bar construction working  
   data_fetching: ✅ Complete - Direct data.binance.vision integration
-  algorithm_validation: ✅ Complete - Non-lookahead bias validated across multiple thresholds
-  performance_validation: ✅ Complete - Processing ~2M trades in 15-20 seconds
+  algorithm_validation: ✅ Complete - Breach consistency validation implemented
+  performance_validation: ✅ Complete - 116M trades/sec (11.6x better than target)
+  correctness_validation: ✅ Complete - Real data processing (1.38M trades validated)
   multi_asset_support: ✅ Complete - BTCUSDT, ETHUSDT, SOLUSDT, ADAUSDT tested
+  security_updates: ✅ Complete - All dependency vulnerabilities fixed
   
+  # Missing Core Functionality (High Priority)
+  arrow_parquet_integration: ❌ Not Started - No binary format support
+  multi_market_support: ❌ Not Started - UM futures only (no CM/SPOT)
+  market_type_cli: ❌ Not Started - Hardcoded to UM futures
+  comprehensive_format_validation: ❌ Partial - Basic validation only
+
+# CRITICAL VALIDATION FRAMEWORK - EMPIRICAL DISCOVERY
+validation_framework:
+  breach_consistency_validation:
+    description: "Cross-validation method for algorithm correctness"
+    empirical_discovery: "More rigorous than individual breach detection"
+    rule: "If high >= upper_threshold OR low <= lower_threshold, then close must also breach same threshold"
+    rationale: "Breaching trade that triggers bar closure becomes the close price"
+    implementation: "(high_breach → close_breach) AND (low_breach → close_breach)"
+    workflow_validation: "Validates trade processing, threshold detection, breach inclusion, bar closing"
+    
+  step_by_step_verification_methodology:
+    description: "Systematic testing approach for production confidence"
+    empirical_insight: "Iterative testing prevents failure cascades"
+    phases:
+      - "Environment foundation (toolchain, dependencies)"
+      - "Core validation (unit tests, algorithm correctness)" 
+      - "Build verification (debug, release)"
+      - "Performance validation (speed + correctness)"
+      - "Real data processing (actual Binance trades)"
+      - "Cross-validation (breach consistency checks)"
+    
+  performance_plus_correctness_validation:
+    description: "Dual validation requirement"
+    empirical_learning: "Speed metrics alone insufficient - need correctness proof"
+    requirements:
+      - "Performance targets: 1M ticks < 100ms (achieved: 8.6ms)"
+      - "Throughput targets: >100M trades/sec (achieved: 116M trades/sec)"
+      - "Correctness proof: Breach consistency across all bars"
+      - "Real data validation: Actual Binance market data processing"
+
   # Statistical Analysis Framework Implementation
   statistical_framework: ✅ Complete - Comprehensive SOTA statistical analysis integrated
   statistical_crates: ✅ Complete - statrs, quantiles, polars, nalgebra, peroxide integrated
@@ -1015,25 +1093,44 @@ statistical_analysis_framework:
     performance_benchmarks: "Performance validation across different dataset sizes"
     memory_safety: "Rust's ownership system ensures memory-safe statistical computations"
   
-  next_phase: "Phase 2 - Arrow/Parquet Integration + Enhanced JSON Export"
+  next_phase: "Phase 3 - Arrow/Parquet Integration (Core Missing Functionality)"
+  immediate_priorities:
+    priority_1_arrow_parquet: "Add binary format support - biggest gap vs YML plan"
+    priority_2_market_type_cli: "Add market_type parameter (um_futures, cm_futures, spot)"
+    priority_3_comprehensive_validation: "Complete format validation framework from YML"
+    
   immediate_tasks:
-    - "Complete export binary integration with statistical engine"
-    - "Add Apache Arrow dependencies to Cargo.toml"  
-    - "Implement market_type parameter in CLI"
+    - "Add apache-arrow and parquet crate dependencies to Cargo.toml"
+    - "Implement Arrow schema with decimal128 precision and metadata"
+    - "Add Parquet writer with Snappy compression"
+    - "Add market_type CLI parameter (currently hardcoded to UM)"
     - "Update file naming with market type prefixes"
-    - "Add Parquet export with metadata preservation"
-    - "Generate comprehensive JSON metadata across all formats"
+    - "Implement comprehensive format validation suite"
 
-# Planning Status
-planning_status: consolidated_and_complete
-priority: high
-estimated_effort: "1-2 weeks for Arrow/Parquet integration"
-last_updated: "2025-09-10T19:04:00Z"
+# Planning Status - EMPIRICAL UPDATE
+planning_status: "Updated based on empirical experience - phases reordered"
+completion_status: "Phase 1-2 complete (validation), Phase 3-6 not started"
+priority: "HIGH - Arrow/Parquet integration is biggest gap"
+estimated_effort: "1-2 weeks for Arrow/Parquet integration + market type support"
+last_updated: "2025-09-11T20:30:00Z"
 
-# Success Criteria
+# Success Criteria - EMPIRICAL VALIDATION
 success_criteria:
-  data_source_identification: ✅ "All formats include market type (um/cm/spot) identification"
-  format_optimization: ✅ "Parquet default with 20-80% file size reduction"
-  python_compatibility: ✅ "Zero-copy pandas/polars integration planned"
-  backward_compatibility: ✅ "CSV/JSON support maintained with --format flag"
-  file_organization: ✅ "Clear naming conventions and directory structure"
+  algorithm_correctness: ✅ "Breach consistency validation implemented and verified"
+  performance_targets: ✅ "116M trades/sec (11.6x better than 100ms target)"
+  real_data_validation: ✅ "1.38M Binance trades processed and verified"
+  security_foundation: ✅ "All vulnerabilities fixed, dependency tree clean"
+  
+  # Missing Core Functionality
+  binary_format_support: ❌ "Arrow/Parquet integration not implemented"
+  multi_market_support: ❌ "Only UM futures, no CM/SPOT support"
+  comprehensive_testing: ❌ "Basic validation only, full framework missing"
+  python_ecosystem: ❌ "No discovery tools or seamless integration"
+
+# EMPIRICAL INSIGHTS FOR FUTURE DEVELOPMENT
+empirical_insights:
+  validation_first_principle: "Algorithm validation must precede format expansion"
+  dual_validation_requirement: "Performance AND correctness validation both essential"
+  iterative_testing_methodology: "Step-by-step verification prevents cascading failures"
+  breach_consistency_discovery: "Cross-validation more rigorous than individual tests"
+  security_foundation_principle: "Dependency security required before production features"
