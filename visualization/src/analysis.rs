@@ -1,7 +1,6 @@
 //! Statistical analysis overlays for range bar charts
 
 use crate::data::RangeBarData;
-use crate::errors::Result;
 
 /// Statistical analysis calculator for range bar data
 pub struct RangeBarAnalyzer {

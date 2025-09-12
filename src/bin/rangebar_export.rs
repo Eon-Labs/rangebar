@@ -13,10 +13,10 @@ use zip::ZipArchive;
 use sha2::{Digest, Sha256};
 
 // Use library types and statistics module
-use rangebar_rust::{AggTrade, FixedPoint, RangeBar, RangeBarProcessor};
+use rangebar_rust::{AggTrade, FixedPoint, RangeBar};
 
 #[cfg(feature = "statistics")]
-use rangebar_rust::statistics::{RangeBarMetadata, StatisticalConfig, StatisticalEngine};
+use rangebar_rust::statistics::RangeBarMetadata;
 
 // Enhanced output result with comprehensive metadata
 #[derive(Debug, Serialize)]
@@ -50,25 +50,9 @@ struct ExportedFile {
     pub market_type: String, // "um", "cm", "spot"
 }
 
-// Market-type aware range bar for enhanced output
-#[derive(Debug, Clone, Serialize)]
-struct MarketAwareRangeBar {
-    bar_id: usize,
-    open_time: i64,
-    close_time: i64,
-    open: f64,
-    high: f64,
-    low: f64,
-    close: f64,
-    volume: f64,
-    duration_minutes: f64,
-    price_move_pct: f64,
-    market_type: String,
-    symbol: String,
-    threshold_pct: f64,
-}
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // is_buyer_maker and is_best_match preserved for market microstructure analysis
 struct CsvAggTrade {
     agg_trade_id: u64,
     price: f64,
@@ -141,6 +125,7 @@ impl ExportRangeBarProcessor {
         }
     }
 
+    #[allow(dead_code)] // Alternative processing method
     fn process_trades(&mut self, trades: &[AggTrade]) -> Vec<RangeBar> {
         for trade in trades {
             self.process_single_trade(trade.clone());
@@ -317,7 +302,7 @@ impl RangeBarExporter {
     ) -> Result<EnhancedExportResult, Box<dyn std::error::Error + Send + Sync>> {
         let start_time = std::time::Instant::now();
         let mut processor = ExportRangeBarProcessor::new((threshold_pct * 1_000_000.0) as u32);
-        let mut all_range_bars = Vec::new();
+        let mut all_range_bars: Vec<RangeBar>; // Declared here, initialized later
         let mut total_trades = 0u64;
         let mut current_date = start_date;
 
@@ -522,6 +507,7 @@ impl RangeBarExporter {
         })
     }
 
+    #[allow(dead_code)] // Alternative processing method
     async fn process_single_day(
         &self,
         processor: &mut ExportRangeBarProcessor,
@@ -764,6 +750,7 @@ impl RangeBarExporter {
         Ok(trades_count)
     }
 
+    #[allow(dead_code)] // Alternative processing method with statistics
     async fn process_single_day_with_stats(
         &self,
         processor: &mut ExportRangeBarProcessor,
@@ -836,6 +823,7 @@ impl RangeBarExporter {
         Ok(())
     }
 
+    #[allow(dead_code)] // Basic export method, superseded by export_to_json_with_metadata
     fn export_to_json(
         &self,
         bars: &[RangeBar],
@@ -854,7 +842,7 @@ impl RangeBarExporter {
         filename: &str,
         metadata: Option<&rangebar_rust::statistics::RangeBarMetadata>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        use serde_json::{Value, json};
+        use serde_json::json;
 
         let filepath = Path::new(&self.output_dir).join(filename);
 

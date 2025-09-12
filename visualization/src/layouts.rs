@@ -245,7 +245,7 @@ impl TimePositionCalculator {
         let chart_width = self.chart_end - self.chart_start;
         
         // Calculate cumulative time positions
-        let mut cumulative_time = 0.0;
+        let _cumulative_time = 0.0;
         
         for i in 0..bars.len() {
             if i == 0 {
