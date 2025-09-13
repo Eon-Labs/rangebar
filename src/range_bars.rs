@@ -94,25 +94,14 @@ impl RangeBarProcessor {
                     current_bar = Some(RangeBarState::new(trade, self.threshold_bps));
                 }
                 Some(ref mut bar_state) => {
-                    // CORRECT ALGORITHM: Always update high/low with actual prices first
-                    if trade.price > bar_state.bar.high {
-                        bar_state.bar.high = trade.price;
-                    }
-                    if trade.price < bar_state.bar.low {
-                        bar_state.bar.low = trade.price;
-                    }
-
                     // Check if this trade breaches the threshold
                     if bar_state.bar.is_breach(
                         trade.price,
                         bar_state.upper_threshold,
                         bar_state.lower_threshold,
                     ) {
-                        // Breach detected - close bar with ACTUAL breaching trade price
-                        bar_state.bar.close = trade.price; // Actual price, not threshold!
-                        bar_state.bar.volume = FixedPoint(bar_state.bar.volume.0 + trade.volume.0);
-                        bar_state.bar.trade_count += 1;
-                        bar_state.bar.close_time = trade.timestamp;
+                        // Breach detected - update bar with breaching trade (includes microstructure)
+                        bar_state.bar.update_with_trade(trade);
 
                         // Validation: Ensure high/low include open/close extremes
                         debug_assert!(
@@ -126,11 +115,8 @@ impl RangeBarProcessor {
                         current_bar = None;
                         defer_open = true; // Next trade will open new bar
                     } else {
-                        // No breach: normal update (excluding high/low which were already updated)
-                        bar_state.bar.close = trade.price;
-                        bar_state.bar.volume = FixedPoint(bar_state.bar.volume.0 + trade.volume.0);
-                        bar_state.bar.trade_count += 1;
-                        bar_state.bar.close_time = trade.timestamp;
+                        // No breach: normal update with microstructure calculations
+                        bar_state.bar.update_with_trade(trade);
                     }
                 }
             }
@@ -257,6 +243,7 @@ mod tests {
             first_trade_id: id * 10,
             last_trade_id: id * 10,
             timestamp,
+            is_buyer_maker: id % 2 == 0, // Alternate buy/sell pressure for realistic testing
         }
     }
 

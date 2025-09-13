@@ -17,6 +17,9 @@ fn create_test_trades(count: usize, base_price: f64, volatility: f64) -> Vec<Agg
         let price_change = (random - 0.5) * volatility * 2.0;
         price += price_change;
         
+        // Alternate buy/sell pressure for realistic microstructure testing
+        let is_buyer_maker = (i % 2) == 0; // 50/50 split for balanced microstructure
+
         trades.push(AggTrade {
             agg_trade_id: i as i64,
             price: FixedPoint::from_str(&format!("{:.8}", price)).unwrap(),
@@ -24,6 +27,7 @@ fn create_test_trades(count: usize, base_price: f64, volatility: f64) -> Vec<Agg
             first_trade_id: i as i64,
             last_trade_id: i as i64,
             timestamp: 1640995200000 + (i as i64 * 100), // 100ms intervals
+            is_buyer_maker, // PHASE 0: Market microstructure field
         });
     }
     
@@ -75,6 +79,7 @@ fn bench_breach_detection(c: &mut Criterion) {
         first_trade_id: 1,
         last_trade_id: 1,
         timestamp: 1640995200000,
+        is_buyer_maker: false, // Buy pressure for testing
     };
     
     let bar = rangebar_rust::RangeBar::new(&trade);

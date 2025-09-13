@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 /// Aggregate trade data from Binance UM Futures
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AggTrade {
-    /// Aggregate trade ID  
+    /// Aggregate trade ID
     pub agg_trade_id: i64,
 
     /// Price as fixed-point integer
@@ -18,11 +18,15 @@ pub struct AggTrade {
     /// First trade ID in aggregation
     pub first_trade_id: i64,
 
-    /// Last trade ID in aggregation  
+    /// Last trade ID in aggregation
     pub last_trade_id: i64,
 
     /// Timestamp in milliseconds
     pub timestamp: i64,
+
+    /// Whether buyer is market maker (true = sell pressure, false = buy pressure)
+    /// Critical for order flow analysis and market microstructure
+    pub is_buyer_maker: bool,
 }
 
 impl AggTrade {
@@ -37,7 +41,7 @@ impl AggTrade {
     }
 }
 
-/// Range bar with OHLCV data
+/// Range bar with OHLCV data and market microstructure enhancements
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RangeBar {
     /// Opening timestamp (first trade)
@@ -52,7 +56,7 @@ pub struct RangeBar {
     /// Highest price in bar
     pub high: FixedPoint,
 
-    /// Lowest price in bar  
+    /// Lowest price in bar
     pub low: FixedPoint,
 
     /// Closing price (breach trade price)
@@ -70,13 +74,61 @@ pub struct RangeBar {
     /// First aggregate trade ID
     pub first_id: i64,
 
-    /// Last aggregate trade ID  
+    /// Last aggregate trade ID
     pub last_id: i64,
+
+    // === MARKET MICROSTRUCTURE ENHANCEMENTS ===
+
+    /// Volume from buy-side trades (is_buyer_maker = false)
+    /// Represents aggressive buying pressure
+    pub buy_volume: FixedPoint,
+
+    /// Volume from sell-side trades (is_buyer_maker = true)
+    /// Represents aggressive selling pressure
+    pub sell_volume: FixedPoint,
+
+    /// Number of buy-side trades (aggressive buying)
+    pub buy_trade_count: i64,
+
+    /// Number of sell-side trades (aggressive selling)
+    pub sell_trade_count: i64,
+
+    /// Volume Weighted Average Price for the bar
+    /// Calculated incrementally as: sum(price * volume) / sum(volume)
+    pub vwap: FixedPoint,
+
+    /// Turnover from buy-side trades (buy pressure)
+    pub buy_turnover: i128,
+
+    /// Turnover from sell-side trades (sell pressure)
+    pub sell_turnover: i128,
 }
 
 impl RangeBar {
     /// Create new range bar from opening trade
     pub fn new(trade: &AggTrade) -> Self {
+        let trade_turnover = trade.turnover();
+        let trade_count = trade.trade_count();
+
+        // Segregate order flow based on is_buyer_maker
+        let (buy_volume, sell_volume) = if trade.is_buyer_maker {
+            (FixedPoint(0), trade.volume) // Seller aggressive = sell pressure
+        } else {
+            (trade.volume, FixedPoint(0)) // Buyer aggressive = buy pressure
+        };
+
+        let (buy_trade_count, sell_trade_count) = if trade.is_buyer_maker {
+            (0, trade_count)
+        } else {
+            (trade_count, 0)
+        };
+
+        let (buy_turnover, sell_turnover) = if trade.is_buyer_maker {
+            (0, trade_turnover)
+        } else {
+            (trade_turnover, 0)
+        };
+
         Self {
             open_time: trade.timestamp,
             close_time: trade.timestamp,
@@ -85,14 +137,23 @@ impl RangeBar {
             low: trade.price,
             close: trade.price,
             volume: trade.volume,
-            turnover: trade.turnover(),
-            trade_count: trade.trade_count(),
+            turnover: trade_turnover,
+            trade_count,
             first_id: trade.agg_trade_id,
             last_id: trade.agg_trade_id,
+            // Market microstructure fields
+            buy_volume,
+            sell_volume,
+            buy_trade_count,
+            sell_trade_count,
+            vwap: trade.price, // Initial VWAP equals opening price
+            buy_turnover,
+            sell_turnover,
         }
     }
 
     /// Update bar with new trade data (always call before checking breach)
+    /// Maintains market microstructure metrics incrementally
     pub fn update_with_trade(&mut self, trade: &AggTrade) {
         // Update price extremes
         if trade.price > self.high {
@@ -107,10 +168,39 @@ impl RangeBar {
         self.close_time = trade.timestamp;
         self.last_id = trade.agg_trade_id;
 
-        // Update volume and trade count
+        // Cache trade metrics for efficiency
+        let trade_turnover = trade.turnover();
+        let trade_count = trade.trade_count();
+
+        // Update total volume and trade count
         self.volume = FixedPoint(self.volume.0 + trade.volume.0);
-        self.turnover += trade.turnover();
-        self.trade_count += trade.trade_count();
+        self.turnover += trade_turnover;
+        self.trade_count += trade_count;
+
+        // === MARKET MICROSTRUCTURE INCREMENTAL UPDATES ===
+
+        // Update order flow segregation
+        if trade.is_buyer_maker {
+            // Seller aggressive = sell pressure
+            self.sell_volume = FixedPoint(self.sell_volume.0 + trade.volume.0);
+            self.sell_trade_count += trade_count;
+            self.sell_turnover += trade_turnover;
+        } else {
+            // Buyer aggressive = buy pressure
+            self.buy_volume = FixedPoint(self.buy_volume.0 + trade.volume.0);
+            self.buy_trade_count += trade_count;
+            self.buy_turnover += trade_turnover;
+        }
+
+        // Update VWAP incrementally: VWAP = total_turnover / total_volume
+        // Using integer arithmetic to maintain precision
+        if self.volume.0 > 0 {
+            // Calculate VWAP: turnover / volume, but maintain FixedPoint precision
+            // turnover is in (price * volume) units, volume is in volume units
+            // VWAP should be in price units
+            let vwap_raw = self.turnover / (self.volume.0 as i128);
+            self.vwap = FixedPoint(vwap_raw as i64);
+        }
     }
 
     /// Check if price breaches the range thresholds
@@ -148,6 +238,7 @@ mod tests {
             first_trade_id: 100,
             last_trade_id: 102,
             timestamp: 1640995200000,
+            is_buyer_maker: false, // Buy pressure (taker buying from maker)
         };
 
         assert_eq!(trade.trade_count(), 3); // 102 - 100 + 1
@@ -163,6 +254,7 @@ mod tests {
             first_trade_id: 100,
             last_trade_id: 100,
             timestamp: 1640995200000,
+            is_buyer_maker: true, // Sell pressure (taker selling to maker)
         };
 
         let bar = RangeBar::new(&trade);
@@ -181,6 +273,7 @@ mod tests {
             first_trade_id: 100,
             last_trade_id: 100,
             timestamp: 1640995200000,
+            is_buyer_maker: false, // Buy pressure
         };
 
         let mut bar = RangeBar::new(&trade1);
@@ -192,6 +285,7 @@ mod tests {
             first_trade_id: 101,
             last_trade_id: 101,
             timestamp: 1640995201000,
+            is_buyer_maker: true, // Sell pressure
         };
 
         bar.update_with_trade(&trade2);
@@ -202,5 +296,53 @@ mod tests {
         assert_eq!(bar.close.to_string(), "50100.00000000");
         assert_eq!(bar.volume.to_string(), "3.00000000");
         assert_eq!(bar.trade_count, 2);
+    }
+
+    #[test]
+    fn test_microstructure_segregation() {
+        // Create buy trade (is_buyer_maker = false)
+        let buy_trade = AggTrade {
+            agg_trade_id: 1,
+            price: FixedPoint::from_str("50000.0").unwrap(),
+            volume: FixedPoint::from_str("1.5").unwrap(),
+            first_trade_id: 1,
+            last_trade_id: 1,
+            timestamp: 1640995200000,
+            is_buyer_maker: false, // Buy pressure (taker buying from maker)
+        };
+
+        let mut bar = RangeBar::new(&buy_trade);
+
+        // Create sell trade (is_buyer_maker = true)
+        let sell_trade = AggTrade {
+            agg_trade_id: 2,
+            price: FixedPoint::from_str("50050.0").unwrap(),
+            volume: FixedPoint::from_str("2.5").unwrap(),
+            first_trade_id: 2,
+            last_trade_id: 3, // Multiple trades aggregated
+            timestamp: 1640995201000,
+            is_buyer_maker: true, // Sell pressure (taker selling to maker)
+        };
+
+        bar.update_with_trade(&sell_trade);
+
+        // Verify order flow segregation
+        assert_eq!(bar.buy_volume.to_string(), "1.50000000"); // Only first trade
+        assert_eq!(bar.sell_volume.to_string(), "2.50000000"); // Only second trade
+        assert_eq!(bar.buy_trade_count, 1); // First trade count
+        assert_eq!(bar.sell_trade_count, 2); // Second trade count (3 - 2 + 1 = 2)
+
+        // Verify totals
+        assert_eq!(bar.volume.to_string(), "4.00000000"); // 1.5 + 2.5
+        assert_eq!(bar.trade_count, 3); // 1 + 2
+
+        // Verify VWAP calculation
+        // VWAP = (50000 * 1.5 + 50050 * 2.5) / 4.0 = (75000 + 125125) / 4.0 = 50031.25
+        assert_eq!(bar.vwap.to_string(), "50031.25000000");
+
+        println!("✅ Microstructure segregation test passed:");
+        println!("   Buy volume: {}, Sell volume: {}", bar.buy_volume.to_string(), bar.sell_volume.to_string());
+        println!("   Buy trades: {}, Sell trades: {}", bar.buy_trade_count, bar.sell_trade_count);
+        println!("   VWAP: {}", bar.vwap.to_string());
     }
 }

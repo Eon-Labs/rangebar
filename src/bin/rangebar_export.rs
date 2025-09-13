@@ -88,6 +88,7 @@ impl From<CsvAggTrade> for AggTrade {
             first_trade_id: csv_trade.first_trade_id as i64,
             last_trade_id: csv_trade.last_trade_id as i64,
             timestamp: csv_trade.timestamp as i64,
+            is_buyer_maker: csv_trade.is_buyer_maker, // CRITICAL: Preserve order flow data
         }
     }
 }
@@ -113,6 +114,21 @@ struct InternalRangeBar {
     trade_count: i64,
     first_id: i64,
     last_id: i64,
+    // === MARKET MICROSTRUCTURE ENHANCEMENTS ===
+    /// Volume from buy-side trades (is_buyer_maker = false)
+    buy_volume: FixedPoint,
+    /// Volume from sell-side trades (is_buyer_maker = true)
+    sell_volume: FixedPoint,
+    /// Number of buy-side trades
+    buy_trade_count: i64,
+    /// Number of sell-side trades
+    sell_trade_count: i64,
+    /// Volume Weighted Average Price
+    vwap: FixedPoint,
+    /// Turnover from buy-side trades
+    buy_turnover: i128,
+    /// Turnover from sell-side trades
+    sell_turnover: i128,
 }
 
 impl ExportRangeBarProcessor {
@@ -152,6 +168,28 @@ impl ExportRangeBarProcessor {
     fn process_single_trade(&mut self, trade: AggTrade) {
         if self.current_bar.is_none() {
             // Start new bar
+            let trade_turnover = trade.turnover();
+            let trade_count = trade.trade_count();
+
+            // Segregate order flow based on is_buyer_maker
+            let (buy_volume, sell_volume) = if trade.is_buyer_maker {
+                (FixedPoint(0), trade.volume) // Seller aggressive = sell pressure
+            } else {
+                (trade.volume, FixedPoint(0)) // Buyer aggressive = buy pressure
+            };
+
+            let (buy_trade_count, sell_trade_count) = if trade.is_buyer_maker {
+                (0, trade_count)
+            } else {
+                (trade_count, 0)
+            };
+
+            let (buy_turnover, sell_turnover) = if trade.is_buyer_maker {
+                (0, trade_turnover)
+            } else {
+                (trade_turnover, 0)
+            };
+
             self.current_bar = Some(InternalRangeBar {
                 open_time: trade.timestamp,
                 close_time: trade.timestamp,
@@ -160,22 +198,34 @@ impl ExportRangeBarProcessor {
                 low: trade.price.clone(),
                 close: trade.price.clone(),
                 volume: trade.volume.clone(),
-                turnover: trade.turnover(),
-                trade_count: trade.trade_count(),
+                turnover: trade_turnover,
+                trade_count,
                 first_id: trade.agg_trade_id,
                 last_id: trade.agg_trade_id,
+                // Market microstructure fields
+                buy_volume,
+                sell_volume,
+                buy_trade_count,
+                sell_trade_count,
+                vwap: trade.price, // Initial VWAP equals opening price
+                buy_turnover,
+                sell_turnover,
             });
             return;
         }
 
         let bar = self.current_bar.as_mut().unwrap();
 
+        // Cache trade metrics for efficiency
+        let trade_turnover = trade.turnover();
+        let trade_count = trade.trade_count();
+
         // Update bar with new trade
         bar.close_time = trade.timestamp;
         bar.close = trade.price.clone();
         bar.volume.0 += trade.volume.0;
-        bar.turnover += trade.turnover();
-        bar.trade_count += trade.trade_count();
+        bar.turnover += trade_turnover;
+        bar.trade_count += trade_count;
         bar.last_id = trade.agg_trade_id;
 
         if trade.price.0 > bar.high.0 {
@@ -183,6 +233,27 @@ impl ExportRangeBarProcessor {
         }
         if trade.price.0 < bar.low.0 {
             bar.low = trade.price.clone();
+        }
+
+        // === MARKET MICROSTRUCTURE INCREMENTAL UPDATES ===
+
+        // Update order flow segregation
+        if trade.is_buyer_maker {
+            // Seller aggressive = sell pressure
+            bar.sell_volume.0 += trade.volume.0;
+            bar.sell_trade_count += trade_count;
+            bar.sell_turnover += trade_turnover;
+        } else {
+            // Buyer aggressive = buy pressure
+            bar.buy_volume.0 += trade.volume.0;
+            bar.buy_trade_count += trade_count;
+            bar.buy_turnover += trade_turnover;
+        }
+
+        // Update VWAP incrementally: VWAP = total_turnover / total_volume
+        if bar.volume.0 > 0 {
+            let vwap_raw = bar.turnover / (bar.volume.0 as i128);
+            bar.vwap = FixedPoint(vwap_raw as i64);
         }
 
         // Check for breach - convert fixed-point to f64 first
@@ -211,11 +282,41 @@ impl ExportRangeBarProcessor {
                 trade_count: completed_bar.trade_count,
                 first_id: completed_bar.first_id,
                 last_id: completed_bar.last_id,
+                // Market microstructure fields
+                buy_volume: completed_bar.buy_volume,
+                sell_volume: completed_bar.sell_volume,
+                buy_trade_count: completed_bar.buy_trade_count,
+                sell_trade_count: completed_bar.sell_trade_count,
+                vwap: completed_bar.vwap,
+                buy_turnover: completed_bar.buy_turnover,
+                sell_turnover: completed_bar.sell_turnover,
             };
 
             self.completed_bars.push(export_bar);
 
-            // Start new bar
+            // Start new bar with microstructure initialization
+            let new_trade_turnover = trade.turnover();
+            let new_trade_count = trade.trade_count();
+
+            // Segregate order flow for new bar
+            let (new_buy_volume, new_sell_volume) = if trade.is_buyer_maker {
+                (FixedPoint(0), trade.volume)
+            } else {
+                (trade.volume, FixedPoint(0))
+            };
+
+            let (new_buy_trade_count, new_sell_trade_count) = if trade.is_buyer_maker {
+                (0, new_trade_count)
+            } else {
+                (new_trade_count, 0)
+            };
+
+            let (new_buy_turnover, new_sell_turnover) = if trade.is_buyer_maker {
+                (0, new_trade_turnover)
+            } else {
+                (new_trade_turnover, 0)
+            };
+
             self.current_bar = Some(InternalRangeBar {
                 open_time: trade.timestamp,
                 close_time: trade.timestamp,
@@ -224,10 +325,18 @@ impl ExportRangeBarProcessor {
                 low: trade.price.clone(),
                 close: trade.price.clone(),
                 volume: trade.volume.clone(),
-                turnover: trade.turnover(),
-                trade_count: trade.trade_count(),
+                turnover: new_trade_turnover,
+                trade_count: new_trade_count,
                 first_id: trade.agg_trade_id,
                 last_id: trade.agg_trade_id,
+                // Market microstructure fields
+                buy_volume: new_buy_volume,
+                sell_volume: new_sell_volume,
+                buy_trade_count: new_buy_trade_count,
+                sell_trade_count: new_sell_trade_count,
+                vwap: trade.price, // Initial VWAP equals opening price
+                buy_turnover: new_buy_turnover,
+                sell_turnover: new_sell_turnover,
             });
         }
     }
@@ -246,6 +355,14 @@ impl ExportRangeBarProcessor {
                 trade_count: incomplete.trade_count,
                 first_id: incomplete.first_id,
                 last_id: incomplete.last_id,
+                // Market microstructure fields
+                buy_volume: incomplete.buy_volume,
+                sell_volume: incomplete.sell_volume,
+                buy_trade_count: incomplete.buy_trade_count,
+                sell_trade_count: incomplete.sell_trade_count,
+                vwap: incomplete.vwap,
+                buy_turnover: incomplete.buy_turnover,
+                sell_turnover: incomplete.sell_turnover,
             })
         } else {
             None

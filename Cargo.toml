@@ -10,8 +10,12 @@ repository = "https://github.com/Eon-Labs/rangebar"
 documentation = "https://github.com/Eon-Labs/rangebar#readme"
 
 [[bin]]
-name = "rangebar"
+name = "rangebar-export"
 path = "src/bin/rangebar_export.rs"
+
+[[bin]]
+name = "rangebar-analyze"
+path = "src/bin/parallel_premium_analysis.rs"
 
 [[bench]]
 name = "rangebar_bench"
