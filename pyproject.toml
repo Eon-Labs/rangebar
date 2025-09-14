@@ -19,6 +19,7 @@ dependencies = [
     "kaleido>=1.1.0",
     "matplotlib>=3.7.5",
     "seaborn>=0.13.2",
+    "scipy>=1.10.1",
 ]
 
 [project.optional-dependencies]
