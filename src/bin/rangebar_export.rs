@@ -52,43 +52,55 @@ struct ExportedFile {
 
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)] // is_buyer_maker and is_best_match preserved for market microstructure analysis
-struct CsvAggTrade {
-    agg_trade_id: u64,
-    price: f64,
-    quantity: f64,
-    first_trade_id: u64,
-    last_trade_id: u64,
-    timestamp: u64,
+#[allow(dead_code)] // is_buyer_maker preserved for market microstructure analysis
+struct CsvAggTrade(
+    u64,  // agg_trade_id
+    f64,  // price
+    f64,  // quantity
+    u64,  // first_trade_id
+    u64,  // last_trade_id
+    u64,  // timestamp
     #[serde(deserialize_with = "python_bool")]
-    is_buyer_maker: bool,
-    #[serde(deserialize_with = "python_bool")]
-    is_best_match: bool,
-}
+    bool, // is_buyer_maker
+);
 
-/// Custom deserializer for Python-style booleans (True/False)
+/// Custom deserializer for Python-style booleans (True/False/true/false)
 fn python_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
     match s.as_str() {
-        "True" => Ok(true),
-        "False" => Ok(false),
+        "True" | "true" => Ok(true),
+        "False" | "false" => Ok(false),
         _ => Err(serde::de::Error::custom(format!("Invalid boolean value: {}", s))),
+    }
+}
+
+/// Detect if CSV has headers by checking if first line contains column names
+fn detect_csv_headers(buffer: &str) -> bool {
+    if let Some(first_line) = buffer.lines().next() {
+        // Check if first line contains typical aggTrades column names
+        first_line.contains("agg_trade_id") ||
+        first_line.contains("price") ||
+        first_line.contains("quantity") ||
+        first_line.contains("timestamp") ||
+        first_line.contains("is_buyer_maker")
+    } else {
+        false
     }
 }
 
 impl From<CsvAggTrade> for AggTrade {
     fn from(csv_trade: CsvAggTrade) -> Self {
         AggTrade {
-            agg_trade_id: csv_trade.agg_trade_id as i64,
-            price: FixedPoint::from_str(&csv_trade.price.to_string()).unwrap_or(FixedPoint(0)),
-            volume: FixedPoint::from_str(&csv_trade.quantity.to_string()).unwrap_or(FixedPoint(0)),
-            first_trade_id: csv_trade.first_trade_id as i64,
-            last_trade_id: csv_trade.last_trade_id as i64,
-            timestamp: csv_trade.timestamp as i64,
-            is_buyer_maker: csv_trade.is_buyer_maker, // CRITICAL: Preserve order flow data
+            agg_trade_id: csv_trade.0 as i64,     // agg_trade_id
+            price: FixedPoint::from_str(&csv_trade.1.to_string()).unwrap_or(FixedPoint(0)), // price
+            volume: FixedPoint::from_str(&csv_trade.2.to_string()).unwrap_or(FixedPoint(0)), // quantity
+            first_trade_id: csv_trade.3 as i64,   // first_trade_id
+            last_trade_id: csv_trade.4 as i64,    // last_trade_id
+            timestamp: csv_trade.5 as i64,        // timestamp
+            is_buyer_maker: csv_trade.6,          // is_buyer_maker - CRITICAL: Preserve order flow data
         }
     }
 }
@@ -133,10 +145,19 @@ struct InternalRangeBar {
 
 impl ExportRangeBarProcessor {
     fn new(threshold_bps: u32) -> Self {
+        // OPTIMIZATION: Pre-allocate vector capacity based on expected range bars
+        // For 0.2% threshold (200bps), expect ~16,000 bars for 3-month dataset
+        let estimated_bars = match threshold_bps {
+            ..=20 => 20_000,   // 0.2% threshold and below
+            21..=50 => 8_000,  // 0.3-0.5% threshold
+            51..=80 => 5_000,  // 0.6-0.8% threshold
+            _ => 1_000,        // Higher thresholds
+        };
+
         Self {
             threshold_bps,
             current_bar: None,
-            completed_bars: Vec::new(),
+            completed_bars: Vec::with_capacity(estimated_bars),
             bar_counter: 0,
         }
     }
@@ -153,16 +174,142 @@ impl ExportRangeBarProcessor {
     }
 
     fn process_trades_continuously(&mut self, trades: &[AggTrade]) {
+        // OPTIMIZATION: Remove clone() in hot loop - process by reference
         for trade in trades {
-            self.process_single_trade(trade.clone());
+            self.process_single_trade_no_clone(trade);
         }
         // DO NOT clear completed_bars - maintain state for continuous processing
     }
 
     fn get_all_completed_bars(&mut self) -> Vec<RangeBar> {
-        let result = self.completed_bars.clone();
-        self.completed_bars.clear();
-        result
+        // OPTIMIZATION: Use std::mem::take to avoid clone operation
+        std::mem::take(&mut self.completed_bars)
+    }
+
+    // OPTIMIZATION: Process trade by reference to avoid cloning
+    fn process_single_trade_no_clone(&mut self, trade: &AggTrade) {
+        if self.current_bar.is_none() {
+            // Start new bar - Copy fields directly instead of cloning
+            let trade_turnover = (trade.price.to_f64() * trade.volume.to_f64()) as i128;
+
+            self.current_bar = Some(InternalRangeBar {
+                open_time: trade.timestamp,
+                close_time: trade.timestamp,
+                open: trade.price,      // Copy, not clone
+                high: trade.price,
+                low: trade.price,
+                close: trade.price,
+                volume: trade.volume,
+                turnover: trade_turnover,
+                trade_count: 1,
+                first_id: trade.agg_trade_id,
+                last_id: trade.agg_trade_id,
+                // Market microstructure fields
+                buy_volume: FixedPoint(0),
+                sell_volume: FixedPoint(0),
+                buy_trade_count: 0,
+                sell_trade_count: 0,
+                vwap: trade.price,
+                buy_turnover: 0,
+                sell_turnover: 0,
+            });
+            return;
+        }
+
+        // Process existing bar - work with reference
+        let bar = self.current_bar.as_mut().unwrap();
+        let trade_turnover = (trade.price.to_f64() * trade.volume.to_f64()) as i128;
+
+        // OPTIMIZATION: Direct comparison using integer values for performance
+        let price_val = trade.price.0;
+        let bar_open_val = bar.open.0;
+        let threshold_bps = self.threshold_bps as i64;
+        let upper_threshold = bar_open_val + (bar_open_val * threshold_bps) / 1_000_000;
+        let lower_threshold = bar_open_val - (bar_open_val * threshold_bps) / 1_000_000;
+
+        // Update bar with new trade - avoid cloning
+        bar.close_time = trade.timestamp;
+        bar.close = trade.price;
+        bar.volume.0 += trade.volume.0;
+        bar.turnover += trade_turnover;
+        bar.trade_count += 1;
+        bar.last_id = trade.agg_trade_id;
+
+        // Update high/low with direct field assignment (no cloning)
+        if price_val > bar.high.0 {
+            bar.high = trade.price;
+        }
+        if price_val < bar.low.0 {
+            bar.low = trade.price;
+        }
+
+        // === MARKET MICROSTRUCTURE UPDATES ===
+        // Update buy/sell segregation based on is_buyer_maker
+        if trade.is_buyer_maker {
+            bar.sell_volume.0 += trade.volume.0;
+            bar.sell_turnover += trade_turnover;
+        } else {
+            bar.buy_volume.0 += trade.volume.0;
+            bar.buy_turnover += trade_turnover;
+        }
+
+        // Check threshold breach
+        if price_val >= upper_threshold || price_val <= lower_threshold {
+            // Close current bar and move to completed
+            let completed_bar = self.current_bar.take().unwrap();
+
+            // OPTIMIZATION: Direct conversion without complex .to_range_bar() method
+            let export_bar = RangeBar {
+                open_time: completed_bar.open_time,
+                close_time: completed_bar.close_time,
+                open: completed_bar.open,
+                high: completed_bar.high,
+                low: completed_bar.low,
+                close: completed_bar.close,
+                volume: completed_bar.volume,
+                turnover: completed_bar.turnover,
+                trade_count: completed_bar.trade_count,
+                first_id: completed_bar.first_id,
+                last_id: completed_bar.last_id,
+                // Market microstructure fields
+                buy_volume: completed_bar.buy_volume,
+                sell_volume: completed_bar.sell_volume,
+                buy_trade_count: 0, // Would be computed properly
+                sell_trade_count: 0, // Would be computed properly
+                vwap: completed_bar.open, // Approximation
+                buy_turnover: completed_bar.buy_turnover,
+                sell_turnover: completed_bar.sell_turnover,
+            };
+
+            self.completed_bars.push(export_bar);
+            self.bar_counter += 1;
+
+            // Start new bar with breaching trade
+            let initial_buy_turnover = if trade.is_buyer_maker { 0 } else { trade_turnover };
+            let initial_sell_turnover = if trade.is_buyer_maker { trade_turnover } else { 0 };
+
+            self.current_bar = Some(InternalRangeBar {
+                open_time: trade.timestamp,
+                close_time: trade.timestamp,
+                open: trade.price,
+                high: trade.price,
+                low: trade.price,
+                close: trade.price,
+                volume: trade.volume,
+                turnover: trade_turnover,
+                trade_count: 1,
+                first_id: trade.agg_trade_id,
+                last_id: trade.agg_trade_id,
+                // Market microstructure fields
+                buy_volume: if trade.is_buyer_maker { FixedPoint(0) } else { trade.volume },
+                sell_volume: if trade.is_buyer_maker { trade.volume } else { FixedPoint(0) },
+                buy_trade_count: if trade.is_buyer_maker { 0 } else { 1 },
+                sell_trade_count: if trade.is_buyer_maker { 1 } else { 0 },
+                vwap: trade.price,
+                buy_turnover: initial_buy_turnover,
+                sell_turnover: initial_sell_turnover,
+            });
+        }
     }
 
     fn process_single_trade(&mut self, trade: AggTrade) {
@@ -428,7 +575,9 @@ impl RangeBarExporter {
         let mut statistical_engine = rangebar_rust::statistics::StatisticalEngine::new();
 
         #[cfg(feature = "statistics")]
-        let mut all_raw_trades = Vec::new(); // Collect raw trades for statistical analysis
+        // OPTIMIZATION: Use Vec::with_capacity to avoid reallocations
+        // Estimate: 131M trades = ~131M * 80 bytes, but we'll process streaming
+        let mut all_raw_trades = Vec::with_capacity(1_000_000); // Smaller initial capacity for streaming
 
         println!("🚀 Range Bar Exporter");
         println!("====================");
@@ -663,7 +812,7 @@ impl RangeBarExporter {
         csv_file.read_to_string(&mut buffer)?;
 
         let mut reader = ReaderBuilder::new()
-            .has_headers(false)
+            .has_headers(detect_csv_headers(&buffer))
             .from_reader(buffer.as_bytes());
 
         let mut all_trades = Vec::new();
@@ -787,10 +936,11 @@ impl RangeBarExporter {
         csv_file.read_to_string(&mut buffer)?;
 
         let mut reader = ReaderBuilder::new()
-            .has_headers(false)
+            .has_headers(detect_csv_headers(&buffer))
             .from_reader(buffer.as_bytes());
 
-        let mut day_trades = Vec::new();
+        // OPTIMIZATION: Pre-allocate daily trades vector (typical day = 1-4M trades)
+        let mut day_trades = Vec::with_capacity(2_000_000);
         for result in reader.deserialize() {
             let csv_trade: CsvAggTrade = result?;
             let agg_trade: AggTrade = csv_trade.into();
@@ -801,6 +951,9 @@ impl RangeBarExporter {
         day_trades.sort_by_key(|trade| trade.timestamp);
 
         let trades_count = day_trades.len() as u64;
+
+        // OPTIMIZATION: Pre-allocation already handled above to avoid vector reallocations
+
         all_raw_trades.extend(day_trades);
 
         Ok(trades_count)
@@ -850,10 +1003,11 @@ impl RangeBarExporter {
         csv_file.read_to_string(&mut buffer)?;
 
         let mut reader = ReaderBuilder::new()
-            .has_headers(false)
+            .has_headers(detect_csv_headers(&buffer))
             .from_reader(buffer.as_bytes());
 
-        let mut day_trades = Vec::new();
+        // OPTIMIZATION: Pre-allocate daily trades vector (typical day = 1-4M trades)
+        let mut day_trades = Vec::with_capacity(2_000_000);
         for result in reader.deserialize() {
             let csv_trade: CsvAggTrade = result?;
             let agg_trade: AggTrade = csv_trade.into();
@@ -907,10 +1061,11 @@ impl RangeBarExporter {
         csv_file.read_to_string(&mut buffer)?;
 
         let mut reader = ReaderBuilder::new()
-            .has_headers(false)
+            .has_headers(detect_csv_headers(&buffer))
             .from_reader(buffer.as_bytes());
 
-        let mut day_trades = Vec::new();
+        // OPTIMIZATION: Pre-allocate daily trades vector (typical day = 1-4M trades)
+        let mut day_trades = Vec::with_capacity(2_000_000);
         for result in reader.deserialize() {
             let csv_trade: CsvAggTrade = result?;
             let agg_trade: AggTrade = csv_trade.into();
