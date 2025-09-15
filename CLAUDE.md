@@ -8,51 +8,54 @@ Non-lookahead bias range bar construction from Binance UM Futures aggTrades data
 
 **Core Algorithm**: Range bars close when price moves ±0.8% from the bar's OPEN price (not from high/low range).
 
-**Architecture**: Rust core for performance (processes 1B+ ticks) with Python wrapper for data orchestration.
+**Architecture**: Pure Rust implementation for performance and reliability (processes 1B+ ticks). All components native Rust: symbol discovery, data processing, and analysis.
 
 ## Key Commands
 
 ### Development
 ```bash
-# Build Rust core
-maturin develop --release
+# Build all Rust binaries
+cargo build --release
 
 # Run all tests
-pytest tests/ -v
-
-# Run Rust tests
 cargo test
 
-# Type checking
-mypy src/rangebar/
+# Lint Rust code
+cargo clippy
 
-# Linting
-ruff check src/
+# Format Rust code
+cargo fmt
 ```
 
 ### Data Operations
 ```bash
-# Fetch UM futures aggTrades data
-python -m rangebar.data_fetcher --symbol BTCUSDT --start 2024-01-01 --end 2024-01-02
+# Discover Tier-1 symbols across all Binance futures markets
+cargo run --bin tier1-symbol-discovery -- --format comprehensive
 
-# Convert raw data to Parquet
-python -m rangebar.data_processor --input data/um_futures --output data/parquet
+# Run parallel Tier-1 analysis (requires configuration)
+cargo run --bin rangebar-analyze
 
-# Generate range bars
-python -m rangebar.cli build --input data/parquet/BTCUSDT --pct 0.008 --output data/bars
+# Export range bars for specific symbol
+cargo run --bin rangebar-export
+
+# Generate range bars from aggTrades
+./target/release/rangebar BTCUSDT 2024-01-01 2024-01-02 0.008 ./output
 ```
 
 ## Architecture
 
 ### Data Pipeline
-1. **Data Fetching**: `binance_historical_data` → Raw CSV/ZIP files
-2. **Preprocessing**: CSV → Parquet with schema validation  
-3. **Computation**: Rust core processes Parquet → Range bars
-4. **Output**: Structured bar data (OHLCV format)
+1. **Symbol Discovery**: `tier1-symbol-discovery` → Multi-market symbol analysis
+2. **Data Fetching**: `binance_historical_data` → Raw CSV/ZIP files
+3. **Preprocessing**: CSV → Parquet with schema validation
+4. **Computation**: Pure Rust processes Parquet → Range bars
+5. **Analysis**: `rangebar-analyze` → Parallel Tier-1 analysis
+6. **Output**: Structured bar data (OHLCV format)
 
-### Performance Tiers
-- **Python + Decimal**: Reference accuracy (slow)
-- **Rust + Fixed-point**: Production speed (100-1000x faster)
+### Performance Architecture
+- **Pure Rust Implementation**: Production speed (100-1000x faster than reference)
+- **Multi-threaded Processing**: Rayon for parallel analysis across symbols
+- **Memory Efficiency**: Fixed-point arithmetic, optimized data structures
 
 ## Critical Algorithm Invariants
 
@@ -105,25 +108,26 @@ lower_breach = bar_open * 0.992
 ```
 rangebar/
 ├── CLAUDE.md                    # This file
-├── Cargo.toml                   # Rust configuration  
-├── pyproject.toml               # Python/maturin config
-├── docs/
-│   ├── planning/               # YAML planning docs
-│   └── architecture/           # Technical specifications
+├── Cargo.toml                   # Rust configuration
 ├── src/
-│   ├── lib.rs                  # Rust entry point
+│   ├── lib.rs                  # Rust library entry point
 │   ├── range_bars.rs           # Core algorithm (Rust)
-│   └── rangebar/               # Python package
+│   └── bin/                    # Rust binaries
+│       ├── tier1_symbol_discovery.rs    # Symbol discovery
+│       ├── parallel_tier1_analysis.rs   # Parallel analysis
+│       └── rangebar_export.rs           # Range bar export
 ├── tests/                      # Test suites
-└── data/                       # Data storage
+├── output/                     # Generated analysis results
+│   └── symbol_analysis/        # Multi-market symbol databases
+└── scripts/                    # Legacy Python scripts (deprecated)
 ```
 
 ## Common Issues
 
 ### Build Issues
 - Ensure Rust toolchain installed: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- Install maturin: `pip install maturin`
-- If PyO3 errors: Check Python version compatibility (3.8+)
+- Update Rust to latest: `rustup update`
+- Clean build if needed: `cargo clean && cargo build --release`
 
 ### Data Issues  
 - Verify UM futures (not spot) data: Check `asset_class="um"` parameter
@@ -135,6 +139,41 @@ rangebar/
 - Verify breach tick included in closing bar (not excluded)
 - Check defer_open mechanism: next tick after breach opens new bar
 
+## Rust Binaries
+
+### Symbol Discovery (`tier1-symbol-discovery`)
+Discovers cryptocurrency symbols available across all three Binance futures markets:
+- **UM Futures USDT-margined**: BTCUSDT, ETHUSDT, etc.
+- **UM Futures USDC-margined**: BTCUSDC, ETHUSDC, etc.
+- **CM Futures coin-margined**: BTCUSD_PERP, ETHUSD_PERP, etc.
+
+```bash
+# Generate comprehensive JSON database
+cargo run --bin tier1-symbol-discovery -- --format comprehensive
+
+# Generate minimal output for pipeline integration
+cargo run --bin tier1-symbol-discovery -- --format minimal
+
+# Include single-market symbols for analysis
+cargo run --bin tier1-symbol-discovery -- --include-single-market
+```
+
+### Parallel Analysis (`rangebar-analyze`)
+Executes parallel range bar analysis across all Tier-1 symbols using Rayon.
+
+```bash
+# Requires configuration: /tmp/range_bar_analysis_config.json
+# Consumes symbols from: /tmp/tier1_usdt_pairs.txt (generated by tier1-symbol-discovery)
+cargo run --bin rangebar-analyze
+```
+
+### Range Bar Export (`rangebar-export`)
+Exports range bar data for visualization and analysis.
+
+```bash
+cargo run --bin rangebar-export -- --help
+```
+
 ## Testing
 
 ### Critical Test Categories
@@ -145,14 +184,17 @@ rangebar/
 
 ### Running Tests
 ```bash
-# Full test suite
-pytest tests/ -v --cov=rangebar
+# Full Rust test suite
+cargo test
 
-# Non-lookahead specific tests
-pytest tests/test_non_lookahead.py -v
+# Run tests with output
+cargo test -- --nocapture
 
 # Performance benchmarks
-pytest benchmarks/ -v
+cargo bench
+
+# Integration tests
+cargo test --test integration
 ```
 
 ## Publishing

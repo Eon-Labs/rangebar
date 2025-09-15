@@ -83,13 +83,15 @@ fn load_configuration() -> Result<(AnalysisConfig, Vec<String>), Box<dyn std::er
     let config_content = fs::read_to_string("/tmp/range_bar_analysis_config.json")?;
     let config: AnalysisConfig = serde_json::from_str(&config_content)?;
 
-    // Load Tier-1 symbols
+    // Load Tier-1 symbols from Rust-generated file (primary source)
     let symbols_content = fs::read_to_string("/tmp/tier1_usdt_pairs.txt")?;
     let symbols: Vec<String> = symbols_content
         .lines()
         .map(|line| line.trim().to_string())
         .filter(|line| !line.is_empty())
         .collect();
+
+    println!("📊 Loaded {} Tier-1 USDT pairs from Rust-generated symbol discovery", symbols.len());
 
     Ok((config, symbols))
 }
@@ -373,6 +375,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("🚀 Rust Native Parallel Tier-1 Symbol Range Bar Analysis");
     println!("📊 Execution ID: {}", execution_id);
+    println!("🔧 Pure Rust Pipeline: tier1-symbol-discovery → parallel analysis");
     println!("{}", "=".repeat(80));
 
     // Load configuration and symbols
