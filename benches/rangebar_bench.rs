@@ -40,7 +40,6 @@ fn bench_range_bar_processing(c: &mut Criterion) {
     // Test different scales
     for size in [1_000, 10_000, 100_000, 1_000_000].iter() {
         let trades = create_test_trades(*size, 50000.0, 100.0); // BTC-like volatility
-        let mut processor = RangeBarProcessor::new(8000); // 0.8% threshold
 
         group.bench_with_input(BenchmarkId::new("process_trades", size), size, |b, _| {
             b.iter(|| {
@@ -136,7 +135,6 @@ fn bench_extreme_cases(c: &mut Criterion) {
 
     // High volatility scenario (many range bar completions)
     let high_volatility_trades = create_test_trades(10000, 50000.0, 500.0); // Very volatile
-    let mut high_vol_processor = RangeBarProcessor::new(8000);
 
     group.bench_function("high_volatility", |b| {
         b.iter(|| {
@@ -150,7 +148,6 @@ fn bench_extreme_cases(c: &mut Criterion) {
 
     // Low volatility scenario (few range bar completions)
     let low_volatility_trades = create_test_trades(10000, 50000.0, 10.0); // Very stable
-    let mut low_vol_processor = RangeBarProcessor::new(8000);
 
     group.bench_function("low_volatility", |b| {
         b.iter(|| {

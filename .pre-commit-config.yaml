@@ -13,14 +13,13 @@ repos:
         files: \.rs$
         pass_filenames: false
         
-      # Note: clippy disabled temporarily due to compilation errors
-      # - id: cargo-clippy
-      #   name: cargo-clippy
-      #   description: Lint Rust code with clippy
-      #   entry: cargo clippy --all-targets --all-features
-      #   language: system
-      #   files: \.rs$
-      #   pass_filenames: false
+      - id: cargo-clippy
+        name: cargo-clippy
+        description: Lint Rust code with clippy
+        entry: cargo clippy --all-targets --all-features -- -D warnings
+        language: system
+        files: \.rs$
+        pass_filenames: false
         
       - id: cargo-test
         name: cargo-nextest
