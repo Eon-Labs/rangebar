@@ -357,11 +357,11 @@ impl ExportRangeBarProcessor {
             self.current_bar = Some(InternalRangeBar {
                 open_time: trade.timestamp,
                 close_time: trade.timestamp,
-                open: trade.price.clone(),
-                high: trade.price.clone(),
-                low: trade.price.clone(),
-                close: trade.price.clone(),
-                volume: trade.volume.clone(),
+                open: trade.price,
+                high: trade.price,
+                low: trade.price,
+                close: trade.price,
+                volume: trade.volume,
                 turnover: trade_turnover,
                 trade_count,
                 first_id: trade.agg_trade_id,
@@ -386,17 +386,17 @@ impl ExportRangeBarProcessor {
 
         // Update bar with new trade
         bar.close_time = trade.timestamp;
-        bar.close = trade.price.clone();
+        bar.close = trade.price;
         bar.volume.0 += trade.volume.0;
         bar.turnover += trade_turnover;
         bar.trade_count += trade_count;
         bar.last_id = trade.agg_trade_id;
 
         if trade.price.0 > bar.high.0 {
-            bar.high = trade.price.clone();
+            bar.high = trade.price;
         }
         if trade.price.0 < bar.low.0 {
-            bar.low = trade.price.clone();
+            bar.low = trade.price;
         }
 
         // === MARKET MICROSTRUCTURE INCREMENTAL UPDATES ===
@@ -484,11 +484,11 @@ impl ExportRangeBarProcessor {
             self.current_bar = Some(InternalRangeBar {
                 open_time: trade.timestamp,
                 close_time: trade.timestamp,
-                open: trade.price.clone(),
-                high: trade.price.clone(),
-                low: trade.price.clone(),
-                close: trade.price.clone(),
-                volume: trade.volume.clone(),
+                open: trade.price,
+                high: trade.price,
+                low: trade.price,
+                close: trade.price,
+                volume: trade.volume,
                 turnover: new_trade_turnover,
                 trade_count: new_trade_count,
                 first_id: trade.agg_trade_id,
@@ -506,31 +506,27 @@ impl ExportRangeBarProcessor {
     }
 
     fn get_incomplete_bar(&mut self) -> Option<RangeBar> {
-        if let Some(incomplete) = &self.current_bar {
-            Some(RangeBar {
-                open_time: incomplete.open_time,
-                close_time: incomplete.close_time,
-                open: incomplete.open,
-                high: incomplete.high,
-                low: incomplete.low,
-                close: incomplete.close,
-                volume: incomplete.volume,
-                turnover: incomplete.turnover,
-                trade_count: incomplete.trade_count,
-                first_id: incomplete.first_id,
-                last_id: incomplete.last_id,
-                // Market microstructure fields
-                buy_volume: incomplete.buy_volume,
-                sell_volume: incomplete.sell_volume,
-                buy_trade_count: incomplete.buy_trade_count,
-                sell_trade_count: incomplete.sell_trade_count,
-                vwap: incomplete.vwap,
-                buy_turnover: incomplete.buy_turnover,
-                sell_turnover: incomplete.sell_turnover,
-            })
-        } else {
-            None
-        }
+        self.current_bar.as_ref().map(|incomplete| RangeBar {
+            open_time: incomplete.open_time,
+            close_time: incomplete.close_time,
+            open: incomplete.open,
+            high: incomplete.high,
+            low: incomplete.low,
+            close: incomplete.close,
+            volume: incomplete.volume,
+            turnover: incomplete.turnover,
+            trade_count: incomplete.trade_count,
+            first_id: incomplete.first_id,
+            last_id: incomplete.last_id,
+            // Market microstructure fields
+            buy_volume: incomplete.buy_volume,
+            sell_volume: incomplete.sell_volume,
+            buy_trade_count: incomplete.buy_trade_count,
+            sell_trade_count: incomplete.sell_trade_count,
+            vwap: incomplete.vwap,
+            buy_turnover: incomplete.buy_turnover,
+            sell_turnover: incomplete.sell_turnover,
+        })
     }
 }
 
@@ -583,7 +579,11 @@ impl RangeBarExporter {
     ) -> Result<EnhancedExportResult, Box<dyn std::error::Error + Send + Sync>> {
         let start_time = std::time::Instant::now();
         let mut processor = ExportRangeBarProcessor::new((threshold_pct * 1_000_000.0) as u32);
-        let mut all_range_bars: Vec<RangeBar> = Vec::new(); // Initialize empty vector
+        #[cfg(feature = "statistics")]
+        let mut all_range_bars: Vec<RangeBar>; // Will be initialized from processor
+
+        #[cfg(not(feature = "statistics"))]
+        let mut all_range_bars: Vec<RangeBar> = Vec::new(); // Initialized empty for simple mode
         let mut total_trades = 0u64;
         let mut current_date = start_date;
 
@@ -604,66 +604,77 @@ impl RangeBarExporter {
         println!("📁 Output: {}/", self.output_dir);
 
         // PHASE 1: Collect all trades chronologically for continuous processing
-        println!("   🔄 Phase 1: Collecting trades chronologically...");
-        while current_date <= end_date {
-            print!("   📊 Loading {}...\r", current_date.format("%Y-%m-%d"));
+        #[cfg(feature = "statistics")]
+        {
+            println!("   🔄 Phase 1: Collecting trades chronologically...");
+            while current_date <= end_date {
+                print!("   📊 Loading {}...\r", current_date.format("%Y-%m-%d"));
 
-            #[cfg(feature = "statistics")]
-            match self
-                .load_single_day_trades(symbol, current_date, &mut all_raw_trades)
-                .await
-            {
-                Ok(trades_count) => {
-                    total_trades += trades_count;
-                    println!(
-                        "   📊 {} {} → {} trades loaded (total: {})",
-                        symbol,
-                        current_date.format("%Y-%m-%d"),
-                        trades_count,
-                        total_trades
-                    );
+                match self
+                    .load_single_day_trades(symbol, current_date, &mut all_raw_trades)
+                    .await
+                {
+                    Ok(trades_count) => {
+                        total_trades += trades_count;
+                        println!(
+                            "   📊 {} {} → {} trades loaded (total: {})",
+                            symbol,
+                            current_date.format("%Y-%m-%d"),
+                            trades_count,
+                            total_trades
+                        );
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "   ⚠️  {} {}: {}",
+                            symbol,
+                            current_date.format("%Y-%m-%d"),
+                            e
+                        );
+                    }
                 }
-                Err(e) => {
-                    eprintln!(
-                        "   ⚠️  {} {}: {}",
-                        symbol,
-                        current_date.format("%Y-%m-%d"),
-                        e
-                    );
-                }
+
+                current_date += Duration::days(1);
             }
+        }
 
-            #[cfg(not(feature = "statistics"))]
-            match self
-                .load_single_day_trades_simple(
-                    symbol,
-                    current_date,
-                    threshold_pct,
-                    &mut all_range_bars,
-                )
-                .await
-            {
-                Ok(trades_count) => {
-                    total_trades += trades_count;
-                    println!(
-                        "   📊 {} {} → {} trades loaded (total: {})",
+        #[cfg(not(feature = "statistics"))]
+        {
+            println!("   🔄 Phase 1: Processing days individually (basic mode)...");
+            while current_date <= end_date {
+                print!("   📊 Loading {}...\r", current_date.format("%Y-%m-%d"));
+
+                match self
+                    .load_single_day_trades_simple(
                         symbol,
-                        current_date.format("%Y-%m-%d"),
-                        trades_count,
-                        total_trades
-                    );
+                        current_date,
+                        threshold_pct,
+                        &mut all_range_bars,
+                    )
+                    .await
+                {
+                    Ok(trades_count) => {
+                        total_trades += trades_count;
+                        println!(
+                            "   📊 {} {} → {} trades loaded (total: {})",
+                            symbol,
+                            current_date.format("%Y-%m-%d"),
+                            trades_count,
+                            total_trades
+                        );
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "   ⚠️  {} {}: {}",
+                            symbol,
+                            current_date.format("%Y-%m-%d"),
+                            e
+                        );
+                    }
                 }
-                Err(e) => {
-                    eprintln!(
-                        "   ⚠️  {} {}: {}",
-                        symbol,
-                        current_date.format("%Y-%m-%d"),
-                        e
-                    );
-                }
+
+                current_date += Duration::days(1);
             }
-
-            current_date += Duration::days(1);
         }
 
         // PHASE 2: Process all trades continuously (maintaining state across day boundaries)
@@ -681,7 +692,17 @@ impl RangeBarExporter {
             );
         }
 
+        #[cfg(not(feature = "statistics"))]
+        {
+            // In basic mode, bars are already processed day-by-day
+            println!(
+                "\n   ✅ Basic processing complete: {} range bars generated",
+                all_range_bars.len()
+            );
+        }
+
         // PHASE 3: Add incomplete bar if exists (final bar may be incomplete)
+        #[cfg(feature = "statistics")]
         if let Some(incomplete_bar) = processor.get_incomplete_bar() {
             all_range_bars.push(incomplete_bar);
             println!(
@@ -1259,10 +1280,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .export_symbol_range_bars(symbol, start_date, end_date, threshold_pct)
         .await
         .map_err(|e| -> Box<dyn std::error::Error> {
-            Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
+            Box::new(std::io::Error::other(e.to_string()))
         })?;
 
     // Export enhanced summary information

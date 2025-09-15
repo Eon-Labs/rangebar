@@ -154,3 +154,28 @@ pytest tests/test_non_lookahead.py -v
 # Performance benchmarks
 pytest benchmarks/ -v
 ```
+
+## Publishing
+
+### Crates.io Publishing
+The rangebar Rust crate is configured for publishing to crates.io with:
+- **Version**: 0.4.1
+- **License**: MIT
+- **Features**: statistics, data-integrity, arrow-support, python bindings
+- **Performance**: 137M+ trades/sec range bar construction
+
+### Authentication
+**Crates.io API token** is securely stored in macOS keychain:
+- **Keychain Service**: `crates.io-token`
+- **Account**: `terryli`
+- **Access**: Limited to cargo binary only
+- **Retrieval**: `security find-generic-password -a "terryli" -s "crates.io-token" -w`
+
+### Publishing Commands
+```bash
+# Retrieve token from keychain and publish
+CARGO_REGISTRY_TOKEN=$(security find-generic-password -a "terryli" -s "crates.io-token" -w) cargo publish --all-features
+
+# Or use cargo login (reads from keychain automatically)
+cargo publish --all-features
+```

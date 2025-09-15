@@ -125,7 +125,7 @@ fn execute_single_symbol(
         .arg(symbol)
         .arg(&config.start_date)
         .arg(&config.end_date)
-        .arg(&config.threshold.to_string())
+        .arg(config.threshold.to_string())
         .arg(&symbol_output)
         .output();
 
