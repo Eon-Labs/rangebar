@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Premium Symbol Tradability Analyzer
-Analyzes 18 premium USDT pairs for spot market tradability based on range bar volatility characteristics
+Tier-1 Symbol Tradability Analyzer
+Analyzes 18 Tier-1 USDT pairs for spot market tradability based on range bar volatility characteristics
 """
 
 import json
@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Dict, List, Tuple, Any
 
 class TradabilityAnalyzer:
-    def __init__(self, results_directory: str = "./output/premium_analysis"):
+    def __init__(self, results_directory: str = "./output/tier1_analysis"):
         self.results_dir = Path(results_directory)
         self.execution_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.tradability_metrics = {}
@@ -276,7 +276,7 @@ class TradabilityAnalyzer:
                 "workspace_path": "/Users/terryli/eon/rangebar",
                 "analysis_ready": True,
                 "machine_readable": True,
-                "tags": ["tradability_analysis", "spot_volatility", "18_premium_symbols", "6_months"],
+                "tags": ["tradability_analysis", "spot_volatility", "18_tier1_symbols", "6_months"],
                 "discovery_file": f"tradability_analysis_{self.execution_timestamp}_discovery.json"
             }
         }
@@ -291,7 +291,7 @@ class TradabilityAnalyzer:
         output_dir.mkdir(exist_ok=True)
         
         # Save comprehensive JSON report
-        report_file = output_dir / f"premium_tradability_analysis_{self.execution_timestamp}.json"
+        report_file = output_dir / f"tier1_tradability_analysis_{self.execution_timestamp}.json"
         with open(report_file, 'w') as f:
             json.dump(report, f, indent=2)
         

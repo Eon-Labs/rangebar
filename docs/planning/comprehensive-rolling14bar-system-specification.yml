@@ -133,7 +133,7 @@ current_session_status:
     clean_compilation:
       status: "✅ COMPLETED"
       achievement: "All Rust warnings resolved, 21 tests passing, zero compilation errors"
-      files_fixed: ["statistics.rs", "parallel_premium_analysis.rs", "rangebar_export.rs", "visualization/*"]
+      files_fixed: ["statistics.rs", "parallel_tier1_analysis.rs", "rangebar_export.rs", "visualization/*"]
       impact: "System is regression-free and ready for enhancement"
     
     multi_agent_research:
@@ -467,7 +467,7 @@ critical_finding:
 # SYSTEM OVERVIEW
 # ============================================================================
 system_overview:
-  scope: "Rolling 14-bar behavioral analysis for 18 premium USDT symbols"  
+  scope: "Rolling 14-bar behavioral analysis for 18 Tier-1 USDT symbols"  
   architecture: "14 independent metrics × 18 symbols = 252 combinations"
   output: "18 individual HTML dashboards with distribution analysis"
   data_source: "Binance SPOT aggTrades → Rust range bars → Python analysis"
@@ -1092,8 +1092,8 @@ dashboard_system:
       - "BCHUSDT_rolling14_distributions_dashboard.html"
   
   dashboard_links:
-    base_directory: "./output/premium_analysis/individual_dashboards/"
-    link_format: "file:///Users/terryli/eon/rangebar/output/premium_analysis/individual_dashboards/{symbol}_rolling14_distributions_dashboard.html"
+    base_directory: "./output/tier1_analysis/individual_dashboards/"
+    link_format: "file:///Users/terryli/eon/rangebar/output/tier1_analysis/individual_dashboards/{symbol}_rolling14_distributions_dashboard.html"
     access_method: "Direct file links provided to user for individual symbol analysis"
 
 # ============================================================================

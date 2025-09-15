@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Interactive Tradability Dashboard for 18 Premium USDT Pairs
+Interactive Tradability Dashboard for 18 Tier-1 USDT Pairs
 Multi-perspective visualization of 5 validated metrics with comprehensive matrix view
 """
 
@@ -297,7 +297,7 @@ class TradabilityDashboard:
         
         fig.add_trace(table, row=row, col=col)
     
-    def save_dashboard(self, output_dir: str = "./output/premium_analysis/tradability_analysis/"):
+    def save_dashboard(self, output_dir: str = "./output/tier1_analysis/tradability_analysis/"):
         """Save interactive HTML dashboard"""
         
         output_path = Path(output_dir)
@@ -369,7 +369,7 @@ def main():
     """Main execution function"""
     
     # Find latest comprehensive CSV file
-    analysis_dir = Path("./output/premium_analysis/tradability_analysis/")
+    analysis_dir = Path("./output/tier1_analysis/tradability_analysis/")
     csv_files = list(analysis_dir.glob("comprehensive_tradability_rankings_*.csv"))
     
     if not csv_files:

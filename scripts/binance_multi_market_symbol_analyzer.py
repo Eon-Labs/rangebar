@@ -6,7 +6,7 @@ Default behavior: Cross-market analysis of Binance futures symbols with comprehe
 machine-discoverable output formats.
 
 Focuses on symbols available across multiple markets:
-- Premium (All 3): USDT + USDC + Coin-margined perpetuals  
+- Tier-1 (All 3): USDT + USDC + Coin-margined perpetuals
 - Dual Market: Available in 2 markets
 - Comprehensive spot market mapping for further processing
 
@@ -16,7 +16,7 @@ Output Formats:
 - Machine-discoverable versioned files
 - Claude Code workspace integration
 
-Default Focus: 18 premium symbols available in all three markets
+Default Focus: 18 Tier-1 symbols available in all three markets
 Use Cases: Range bar construction, cross-market analysis, arbitrage detection
 
 Usage with uv:
@@ -61,7 +61,7 @@ class MultiMarketSymbol:
     market_availability: List[str]
     contracts: Dict[str, str]  # market_type -> contract_symbol
     contract_details: List[MarketContract]
-    priority: str  # 'premium', 'dual', 'single'
+    priority: str  # 'tier1', 'dual', 'single'
     market_count: int
     
     def to_dict(self) -> Dict[str, Any]:
@@ -196,7 +196,7 @@ class BinanceMultiMarketAnalyzer:
         for symbol in symbols_map.values():
             symbol.market_count = len(symbol.market_availability)
             if symbol.market_count >= 3:
-                symbol.priority = 'premium'
+                symbol.priority = 'tier1'
             elif symbol.market_count >= 2:
                 symbol.priority = 'dual'
             else:
@@ -209,8 +209,8 @@ class BinanceMultiMarketAnalyzer:
         """Generate comprehensive JSON database."""
         
         # Categorize symbols
-        premium_symbols = [s for s in symbols_map.values() if s.priority == 'premium']
-        dual_symbols = [s for s in symbols_map.values() if s.priority == 'dual'] 
+        tier1_symbols = [s for s in symbols_map.values() if s.priority == 'tier1']
+        dual_symbols = [s for s in symbols_map.values() if s.priority == 'dual']
         single_symbols = [s for s in symbols_map.values() if s.priority == 'single']
         
         # Statistics
@@ -244,7 +244,7 @@ class BinanceMultiMarketAnalyzer:
                 'statistics': {
                     'total_base_symbols': total_symbols,
                     'multi_market_symbols': multi_market_count,
-                    'premium_symbols': len(premium_symbols),
+                    'tier1_symbols': len(tier1_symbols),
                     'dual_market_symbols': len(dual_symbols),
                     'single_market_symbols': len(single_symbols)
                 },
@@ -259,11 +259,11 @@ class BinanceMultiMarketAnalyzer:
                     ],
                     'machine_readable': True,
                     'versioned': True,
-                    'default_focus': 'premium_multi_market_symbols'
+                    'default_focus': 'tier1_multi_market_symbols'
                 }
             },
             'symbol_database': {
-                'premium_multi_market': [symbol.to_dict() for symbol in sorted(premium_symbols, key=lambda x: x.base_symbol)],
+                'tier1_multi_market': [symbol.to_dict() for symbol in sorted(tier1_symbols, key=lambda x: x.base_symbol)],
                 'dual_market': [symbol.to_dict() for symbol in sorted(dual_symbols, key=lambda x: x.base_symbol)]
             },
             'spot_market_mapping': sorted(spot_mapping, key=lambda x: (-x['market_count'], x['base']))
@@ -278,23 +278,23 @@ class BinanceMultiMarketAnalyzer:
         return database
     
     def generate_minimal_format(self, symbols_map: Dict[str, MultiMarketSymbol]) -> Dict[str, Any]:
-        """Generate minimal format focused on premium symbols."""
-        premium_symbols = [s for s in symbols_map.values() if s.priority == 'premium']
+        """Generate minimal format focused on Tier-1 symbols."""
+        tier1_symbols = [s for s in symbols_map.values() if s.priority == 'tier1']
         
         return {
             'metadata': {
-                'type': 'binance_premium_symbols_minimal',
+                'type': 'binance_tier1_symbols_minimal',
                 'generated': self.generation_timestamp.isoformat(),
-                'count': len(premium_symbols)
+                'count': len(tier1_symbols)
             },
-            'premium_symbols': [
+            'tier1_symbols': [
                 {
                     'base': s.base_symbol,
                     'spot': s.spot_equivalent,
                     'markets': s.market_availability,
                     'contracts': s.contracts
                 }
-                for s in sorted(premium_symbols, key=lambda x: x.base_symbol)
+                for s in sorted(tier1_symbols, key=lambda x: x.base_symbol)
             ]
         }
     
@@ -337,7 +337,7 @@ class BinanceMultiMarketAnalyzer:
         if output_format == OutputFormat.COMPREHENSIVE:
             base_name = "binance_multi_market_futures_symbol_database_comprehensive"
         elif output_format == OutputFormat.MINIMAL:
-            base_name = "binance_premium_multi_market_symbols_minimal"
+            base_name = "binance_tier1_multi_market_symbols_minimal"
         elif output_format == OutputFormat.SPOT_ONLY:
             base_name = "binance_spot_equivalent_multi_market_mapping"
         
@@ -345,11 +345,11 @@ class BinanceMultiMarketAnalyzer:
         stats = data['metadata'].get('statistics', {})
         if output_format == OutputFormat.COMPREHENSIVE:
             total_symbols = stats.get('multi_market_symbols', 0)
-            premium_count = stats.get('premium_symbols', 0)
-            descriptor = f"{premium_count}premium_{total_symbols}total"
+            tier1_count = stats.get('tier1_symbols', 0)
+            descriptor = f"{tier1_count}tier1_{total_symbols}total"
         elif output_format == OutputFormat.MINIMAL:
-            premium_count = stats.get('premium_symbols', len(data.get('premium_symbols', [])))
-            descriptor = f"{premium_count}symbols"
+            tier1_count = stats.get('tier1_symbols', len(data.get('tier1_symbols', [])))
+            descriptor = f"{tier1_count}symbols"
         elif output_format == OutputFormat.SPOT_ONLY:
             symbol_count = len(data.get('spot_market_symbols', []))
             descriptor = f"{symbol_count}symbols"
@@ -445,26 +445,26 @@ class BinanceMultiMarketAnalyzer:
 def print_analysis_summary(database: Dict[str, Any]):
     """Print analysis summary."""
     stats = database['metadata']['statistics']
-    premium_count = stats['premium_symbols']
+    tier1_count = stats['tier1_symbols']
     dual_count = stats['dual_market_symbols']
-    
+
     print("\\n📊 MULTI-MARKET ANALYSIS RESULTS")
     print("=" * 45)
-    print(f"🏆 Premium symbols (3 markets): {premium_count}")
+    print(f"🏆 Tier-1 symbols (3 markets): {tier1_count}")
     print(f"🔗 Dual-market symbols: {dual_count}")
-    print(f"📈 Total multi-market symbols: {premium_count + dual_count}")
-    
-    # Show premium symbols
-    premium_symbols = database['symbol_database']['premium_multi_market']
-    if premium_symbols:
-        print("\\n🎯 PREMIUM MULTI-MARKET SYMBOLS (Default Focus):")
+    print(f"📈 Total multi-market symbols: {tier1_count + dual_count}")
+
+    # Show Tier-1 symbols
+    tier1_symbols = database['symbol_database']['tier1_multi_market']
+    if tier1_symbols:
+        print("\\n🎯 TIER-1 MULTI-MARKET SYMBOLS (Default Focus):")
         print("-" * 25)
-        for symbol in premium_symbols[:10]:  # Show first 10
+        for symbol in tier1_symbols[:10]:  # Show first 10
             markets = '+'.join(symbol['market_availability'])
             print(f"  {symbol['base_symbol']:<8} → {symbol['spot_equivalent']:<12} ({markets})")
-        
-        if len(premium_symbols) > 10:
-            print(f"  ... and {len(premium_symbols) - 10} more premium symbols")
+
+        if len(tier1_symbols) > 10:
+            print(f"  ... and {len(tier1_symbols) - 10} more Tier-1 symbols")
 
 
 def main():
@@ -472,7 +472,7 @@ def main():
         description='Binance Multi-Market Symbol Analyzer (Default: Cross-market focus)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Default Behavior: Cross-market analysis focusing on premium multi-market symbols
+Default Behavior: Cross-market analysis focusing on Tier-1 multi-market symbols
 
 Examples:
   uv run scripts/binance_multi_market_symbol_analyzer.py
@@ -496,14 +496,14 @@ Examples:
     parser.add_argument('--no-discovery-index', action='store_true',
                         help='Skip creating Claude Code discovery index')
     
-    parser.add_argument('--validate-premium', '-v', action='store_true',
-                        help='Validate premium symbols with live data')
+    parser.add_argument('--validate-tier1', '-v', action='store_true',
+                        help='Validate Tier-1 symbols with live data')
     
     args = parser.parse_args()
     
     print("🚀 BINANCE MULTI-MARKET SYMBOL ANALYZER")
     print("=" * 55)
-    print("🎯 Default Focus: Cross-market premium symbols")
+    print("🎯 Default Focus: Cross-market Tier-1 symbols")
     print(f"📋 Output Format: {args.format}")
     
     # Initialize analyzer
@@ -531,13 +531,13 @@ Examples:
     if output_format == OutputFormat.COMPREHENSIVE:
         print_analysis_summary(database)
     else:
-        print(f"\\n📊 Generated {args.format} format with {len(database.get('premium_symbols', database.get('spot_market_symbols', [])))} symbols")
-    
-    # Premium symbol validation
-    if args.validate_premium and output_format == OutputFormat.COMPREHENSIVE:
-        premium_symbols = database['symbol_database']['premium_multi_market']
-        print(f"\\n🔍 Validating {len(premium_symbols)} premium symbols...")
-        print("  (Premium symbols have highest multi-market liquidity)")
+        print(f"\\n📊 Generated {args.format} format with {len(database.get('tier1_symbols', database.get('spot_market_symbols', [])))} symbols")
+
+    # Tier-1 symbol validation
+    if args.validate_tier1 and output_format == OutputFormat.COMPREHENSIVE:
+        tier1_symbols = database['symbol_database']['tier1_multi_market']
+        print(f"\\n🔍 Validating {len(tier1_symbols)} Tier-1 symbols...")
+        print("  (Tier-1 symbols have highest multi-market liquidity)")
     
     # Save results
     print("\\n💾 SAVING MACHINE-DISCOVERABLE RESULTS")
@@ -564,8 +564,8 @@ Examples:
     print("  • Multi-market backtesting")
     
     if output_format == OutputFormat.COMPREHENSIVE:
-        premium_count = database['metadata']['statistics']['premium_symbols']
-        print(f"\\n🏆 {premium_count} premium symbols ready for multi-market range bar construction")
+        tier1_count = database['metadata']['statistics']['tier1_symbols']
+        print(f"\\n🏆 {tier1_count} Tier-1 symbols ready for multi-market range bar construction")
     
     print(f"\\n✅ Analysis completed at {datetime.now().strftime('%H:%M:%S')}")
     return 0

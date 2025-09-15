@@ -1,6 +1,6 @@
-#!/usr/bin/env cargo run --release --bin parallel_premium_analysis --
-//! Parallel Premium Symbol Range Bar Analysis
-//! Native Rust implementation for 6-month analysis on 18 premium USDT pairs
+#!/usr/bin/env cargo run --release --bin parallel_tier1_analysis --
+//! Parallel Tier-1 Symbol Range Bar Analysis
+//! Native Rust implementation for 6-month analysis on 18 Tier-1 USDT pairs
 
 use chrono::Utc;
 use rayon::prelude::*;
@@ -83,8 +83,8 @@ fn load_configuration() -> Result<(AnalysisConfig, Vec<String>), Box<dyn std::er
     let config_content = fs::read_to_string("/tmp/range_bar_analysis_config.json")?;
     let config: AnalysisConfig = serde_json::from_str(&config_content)?;
     
-    // Load premium symbols
-    let symbols_content = fs::read_to_string("/tmp/premium_usdt_pairs.txt")?;
+    // Load Tier-1 symbols
+    let symbols_content = fs::read_to_string("/tmp/tier1_usdt_pairs.txt")?;
     let symbols: Vec<String> = symbols_content
         .lines()
         .map(|line| line.trim().to_string())
@@ -335,7 +335,7 @@ fn save_results(
     // Save discovery file
     let discovery_file = format!("{}/{}", discovery_dir, metadata.claude_code_discovery.discovery_file);
     let discovery_data = serde_json::json!({
-        "type": "parallel_premium_analysis_results_rust_native",
+        "type": "parallel_tier1_analysis_results_rust_native",
         "execution_id": metadata.execution_id,
         "execution_timestamp": metadata.execution_timestamp,
         "summary": {
@@ -363,10 +363,10 @@ fn save_results(
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let execution_id = format!("rust_parallel_premium_{}", 
+    let execution_id = format!("rust_parallel_tier1_{}",
                               Utc::now().format("%Y%m%d_%H%M%S"));
     
-    println!("🚀 Rust Native Parallel Premium Symbol Range Bar Analysis");
+    println!("🚀 Rust Native Parallel Tier-1 Symbol Range Bar Analysis");
     println!("📊 Execution ID: {}", execution_id);
     println!("{}", "=".repeat(80));
     
@@ -377,12 +377,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Period: {} to {} ({} days)", 
              config.start_date, config.end_date, config.period_days);
     println!("   Threshold: {}%", config.threshold * 100.0);
-    println!("   Symbols: {} premium USDT pairs", symbols.len());
+    println!("   Symbols: {} Tier-1 USDT pairs", symbols.len());
     println!("   Parallel Workers: {} (Rayon)", rayon::current_num_threads());
     println!();
     
     // Setup output directories
-    let output_dir = "./output/premium_analysis";
+    let output_dir = "./output/tier1_analysis";
     fs::create_dir_all(format!("{}/individual", output_dir))?;
     fs::create_dir_all(format!("{}/consolidated", output_dir))?;
     fs::create_dir_all(format!("{}/discovery", output_dir))?;
@@ -441,13 +441,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             tags: vec![
                 "rust_native_execution".to_string(),
                 "parallel_execution".to_string(), 
-                "premium_analysis".to_string(),
+                "tier1_analysis".to_string(),
                 "18_symbols".to_string(),
                 "6_months".to_string(),
                 "tradability".to_string(),
                 "rayon_parallel".to_string()
             ],
-            discovery_file: format!("rust_parallel_premium_analysis_{}_discovery.json", execution_id),
+            discovery_file: format!("rust_parallel_tier1_analysis_{}_discovery.json", execution_id),
         },
     };
     

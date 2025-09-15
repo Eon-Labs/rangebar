@@ -85,9 +85,20 @@ lower_breach = bar_open * 0.992
 
 ### Data Source Requirements
 - **Source**: https://github.com/stas-prokopiev/binance_historical_data
-- **Asset Class**: `"um"` (USD-M Futures) **ONLY**
+- **Primary Asset Class**: `"um"` (USD-M Futures) for USDT/USDC perpetuals
+- **Tier-1 Analysis**: `"cm"` (Coin-M Futures) for cross-market analysis
 - **Data Type**: `"aggTrades"` **ONLY**
-- **Not Used**: Spot markets, CM Futures, other data types
+- **Not Used**: Spot markets, other data types
+
+### Tier-1 Instruments Definition
+**Tier-1 instruments** are crypto assets that Binance respects highly enough to list across **ALL THREE** futures markets:
+1. **UM Futures (USDT-margined)**: e.g., BTCUSDT, ETHUSDT
+2. **UM Futures (USDC-margined)**: e.g., BTCUSDC, ETHUSDC
+3. **CM Futures (Coin-margined)**: e.g., BTCUSD_PERP, ETHUSD_PERP
+
+**Current Count**: 18 Tier-1 instruments (BTC, ETH, SOL, ADA, AVAX, etc.)
+**Key Characteristic**: Multi-market availability indicates Binance's highest confidence
+**Use Cases**: Cross-market extrapolative reliability analysis, settlement currency arbitrage
 
 ## Project Structure
 
