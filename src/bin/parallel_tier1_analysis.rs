@@ -91,7 +91,10 @@ fn load_configuration() -> Result<(AnalysisConfig, Vec<String>), Box<dyn std::er
         .filter(|line| !line.is_empty())
         .collect();
 
-    println!("📊 Loaded {} Tier-1 USDT pairs from Rust-generated symbol discovery", symbols.len());
+    println!(
+        "📊 Loaded {} Tier-1 USDT pairs from Rust-generated symbol discovery",
+        symbols.len()
+    );
 
     Ok((config, symbols))
 }

@@ -7,12 +7,12 @@
 //! Replaces the Python binance_multi_market_symbol_analyzer.py with a
 //! high-performance, zero-dependency Rust implementation.
 
+use chrono::Utc;
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use chrono::Utc;
 
 /// Output format for the symbol analysis
 #[derive(Debug, Clone, ValueEnum)]
@@ -73,7 +73,7 @@ struct Args {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct MarketContract {
     symbol: String,
-    market_type: String,  // 'USDT', 'USDC', 'COIN'
+    market_type: String,   // 'USDT', 'USDC', 'COIN'
     contract_type: String, // 'PERPETUAL', 'QUARTERLY', etc.
     settlement_asset: String,
 }
@@ -190,7 +190,9 @@ impl BinanceMultiMarketAnalyzer {
     }
 
     /// Fetch exchange information from both UM and CM futures APIs
-    async fn fetch_market_data(&self) -> Result<(ExchangeInfo, ExchangeInfo), Box<dyn std::error::Error>> {
+    async fn fetch_market_data(
+        &self,
+    ) -> Result<(ExchangeInfo, ExchangeInfo), Box<dyn std::error::Error>> {
         println!("🔍 Fetching comprehensive Binance futures data...");
 
         // Fetch UM Futures data
@@ -211,7 +213,11 @@ impl BinanceMultiMarketAnalyzer {
     }
 
     /// Analyze symbols for multi-market availability
-    fn analyze_multi_market_symbols(&self, um_data: &ExchangeInfo, cm_data: &ExchangeInfo) -> HashMap<String, MultiMarketSymbol> {
+    fn analyze_multi_market_symbols(
+        &self,
+        um_data: &ExchangeInfo,
+        cm_data: &ExchangeInfo,
+    ) -> HashMap<String, MultiMarketSymbol> {
         println!("🔄 Analyzing multi-market symbol availability...");
 
         let mut symbols_map = HashMap::new();
@@ -224,15 +230,16 @@ impl BinanceMultiMarketAnalyzer {
 
             let full_symbol = &symbol_info.symbol;
             let (base, market_type, settlement) = if full_symbol.ends_with("USDT") {
-                (&full_symbol[..full_symbol.len()-4], "USDT", "USDT")
+                (&full_symbol[..full_symbol.len() - 4], "USDT", "USDT")
             } else if full_symbol.ends_with("USDC") {
-                (&full_symbol[..full_symbol.len()-4], "USDC", "USDC")
+                (&full_symbol[..full_symbol.len() - 4], "USDC", "USDC")
             } else {
                 continue;
             };
 
-            let entry = symbols_map.entry(base.to_string()).or_insert_with(|| {
-                MultiMarketSymbol {
+            let entry = symbols_map
+                .entry(base.to_string())
+                .or_insert_with(|| MultiMarketSymbol {
                     base_symbol: base.to_string(),
                     spot_equivalent: format!("{}/USDT", base),
                     market_availability: Vec::new(),
@@ -240,8 +247,7 @@ impl BinanceMultiMarketAnalyzer {
                     contract_details: Vec::new(),
                     priority: "single".to_string(),
                     market_count: 0,
-                }
-            });
+                });
 
             entry.market_availability.push(market_type.to_string());
             entry.contracts.insert(
@@ -259,31 +265,40 @@ impl BinanceMultiMarketAnalyzer {
         // Process CM futures (Coin-margined)
         for symbol_info in &cm_data.symbols {
             let contract_type = symbol_info.contract_type.as_deref();
-            if !matches!(contract_type, Some("PERPETUAL") | Some("PERPETUAL DELIVERING")) {
+            if !matches!(
+                contract_type,
+                Some("PERPETUAL") | Some("PERPETUAL DELIVERING")
+            ) {
                 continue;
             }
 
             let full_symbol = &symbol_info.symbol;
             if let Some(base) = full_symbol.strip_suffix("USD_PERP") {
-                let entry = symbols_map.entry(base.to_string()).or_insert_with(|| {
-                    MultiMarketSymbol {
-                        base_symbol: base.to_string(),
-                        spot_equivalent: format!("{}/USDT", base),
-                        market_availability: Vec::new(),
-                        contracts: HashMap::new(),
-                        contract_details: Vec::new(),
-                        priority: "single".to_string(),
-                        market_count: 0,
-                    }
-                });
+                let entry =
+                    symbols_map
+                        .entry(base.to_string())
+                        .or_insert_with(|| MultiMarketSymbol {
+                            base_symbol: base.to_string(),
+                            spot_equivalent: format!("{}/USDT", base),
+                            market_availability: Vec::new(),
+                            contracts: HashMap::new(),
+                            contract_details: Vec::new(),
+                            priority: "single".to_string(),
+                            market_count: 0,
+                        });
 
                 entry.market_availability.push("COIN".to_string());
-                entry.contracts.insert("coin_margined".to_string(), full_symbol.clone());
+                entry
+                    .contracts
+                    .insert("coin_margined".to_string(), full_symbol.clone());
                 entry.contract_details.push(MarketContract {
                     symbol: full_symbol.clone(),
                     market_type: "COIN".to_string(),
                     contract_type: contract_type.unwrap_or("PERPETUAL").to_string(),
-                    settlement_asset: symbol_info.base_asset.clone().unwrap_or_else(|| base.to_string()),
+                    settlement_asset: symbol_info
+                        .base_asset
+                        .clone()
+                        .unwrap_or_else(|| base.to_string()),
                 });
             }
         }
@@ -302,31 +317,38 @@ impl BinanceMultiMarketAnalyzer {
     }
 
     /// Generate comprehensive database with metadata
-    fn generate_comprehensive_database(&self, symbols_map: &HashMap<String, MultiMarketSymbol>,
-                                     include_single_market: bool) -> ComprehensiveDatabase {
+    fn generate_comprehensive_database(
+        &self,
+        symbols_map: &HashMap<String, MultiMarketSymbol>,
+        include_single_market: bool,
+    ) -> ComprehensiveDatabase {
         let now = Utc::now();
 
         // Categorize symbols
-        let mut tier1_symbols: Vec<_> = symbols_map.values()
+        let mut tier1_symbols: Vec<_> = symbols_map
+            .values()
             .filter(|s| s.priority == "tier1")
             .cloned()
             .collect();
         tier1_symbols.sort_by(|a, b| a.base_symbol.cmp(&b.base_symbol));
 
-        let mut dual_symbols: Vec<_> = symbols_map.values()
+        let mut dual_symbols: Vec<_> = symbols_map
+            .values()
             .filter(|s| s.priority == "dual")
             .cloned()
             .collect();
         dual_symbols.sort_by(|a, b| a.base_symbol.cmp(&b.base_symbol));
 
-        let mut single_symbols: Vec<_> = symbols_map.values()
+        let mut single_symbols: Vec<_> = symbols_map
+            .values()
             .filter(|s| s.priority == "single")
             .cloned()
             .collect();
         single_symbols.sort_by(|a, b| a.base_symbol.cmp(&b.base_symbol));
 
         // Generate spot market mapping
-        let mut spot_mapping: Vec<SpotMapping> = symbols_map.values()
+        let mut spot_mapping: Vec<SpotMapping> = symbols_map
+            .values()
             .filter(|s| s.market_count >= 2)
             .map(|symbol| SpotMapping {
                 base: symbol.base_symbol.clone(),
@@ -336,7 +358,11 @@ impl BinanceMultiMarketAnalyzer {
                 priority: symbol.priority.clone(),
             })
             .collect();
-        spot_mapping.sort_by(|a, b| b.market_count.cmp(&a.market_count).then(a.base.cmp(&b.base)));
+        spot_mapping.sort_by(|a, b| {
+            b.market_count
+                .cmp(&a.market_count)
+                .then(a.base.cmp(&b.base))
+        });
 
         ComprehensiveDatabase {
             metadata: DatabaseMetadata {
@@ -372,15 +398,23 @@ impl BinanceMultiMarketAnalyzer {
             symbol_database: SymbolDatabase {
                 tier1_multi_market: tier1_symbols,
                 dual_market: dual_symbols,
-                single_market: if include_single_market { Some(single_symbols) } else { None },
+                single_market: if include_single_market {
+                    Some(single_symbols)
+                } else {
+                    None
+                },
             },
             spot_market_mapping: spot_mapping,
         }
     }
 
     /// Save database to organized directory structure
-    fn save_database(&self, database: &ComprehensiveDatabase, format: &OutputFormat,
-                    custom_suffix: Option<&str>) -> Result<String, Box<dyn std::error::Error>> {
+    fn save_database(
+        &self,
+        database: &ComprehensiveDatabase,
+        format: &OutputFormat,
+        custom_suffix: Option<&str>,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let now = Utc::now();
         let timestamp = now.format("%Y%m%d_%H%M%S");
 
@@ -390,7 +424,9 @@ impl BinanceMultiMarketAnalyzer {
 
         // Generate filename components
         let base_name = match format {
-            OutputFormat::Comprehensive => "binance_multi_market_futures_symbol_database_comprehensive",
+            OutputFormat::Comprehensive => {
+                "binance_multi_market_futures_symbol_database_comprehensive"
+            }
             OutputFormat::Minimal => "binance_tier1_multi_market_symbols_minimal",
             OutputFormat::SpotOnly => "binance_spot_equivalent_multi_market_mapping",
         };
@@ -400,7 +436,10 @@ impl BinanceMultiMarketAnalyzer {
         let descriptor = format!("{}tier1_{}total", tier1_count, total_multi);
 
         let filename = if let Some(suffix) = custom_suffix {
-            format!("{}_{}_{}_{}_v1.json", base_name, descriptor, suffix, timestamp)
+            format!(
+                "{}_{}_{}_{}_v1.json",
+                base_name, descriptor, suffix, timestamp
+            )
         } else {
             format!("{}_{}_{}_v1.json", base_name, descriptor, timestamp)
         };
@@ -414,8 +453,12 @@ impl BinanceMultiMarketAnalyzer {
     }
 
     /// Generate Tier-1 symbols file for existing Rust pipeline
-    fn generate_tier1_file(&self, symbols_map: &HashMap<String, MultiMarketSymbol>) -> Result<(), Box<dyn std::error::Error>> {
-        let tier1_symbols: Vec<String> = symbols_map.values()
+    fn generate_tier1_file(
+        &self,
+        symbols_map: &HashMap<String, MultiMarketSymbol>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let tier1_symbols: Vec<String> = symbols_map
+            .values()
             .filter(|s| s.priority == "tier1")
             .map(|s| format!("{}USDT", s.base_symbol))
             .collect();
@@ -424,7 +467,10 @@ impl BinanceMultiMarketAnalyzer {
         let tier1_content = tier1_symbols.join("\n");
         fs::write("/tmp/tier1_usdt_pairs.txt", tier1_content)?;
 
-        println!("📄 Generated: /tmp/tier1_usdt_pairs.txt ({} symbols)", tier1_symbols.len());
+        println!(
+            "📄 Generated: /tmp/tier1_usdt_pairs.txt ({} symbols)",
+            tier1_symbols.len()
+        );
         Ok(())
     }
 }
@@ -446,8 +492,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let symbols_map = analyzer.analyze_multi_market_symbols(&um_data, &cm_data);
 
     // Count and display results
-    let tier1_count = symbols_map.values().filter(|s| s.priority == "tier1").count();
-    let dual_count = symbols_map.values().filter(|s| s.priority == "dual").count();
+    let tier1_count = symbols_map
+        .values()
+        .filter(|s| s.priority == "tier1")
+        .count();
+    let dual_count = symbols_map
+        .values()
+        .filter(|s| s.priority == "dual")
+        .count();
     let total_multi = tier1_count + dual_count;
 
     println!("\n📊 MULTI-MARKET ANALYSIS RESULTS");
@@ -457,7 +509,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📈 Total multi-market symbols: {}", total_multi);
 
     // Show sample Tier-1 symbols
-    let mut tier1_symbols: Vec<_> = symbols_map.values()
+    let mut tier1_symbols: Vec<_> = symbols_map
+        .values()
         .filter(|s| s.priority == "tier1")
         .collect();
     tier1_symbols.sort_by(|a, b| a.base_symbol.cmp(&b.base_symbol));
@@ -467,7 +520,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("{}", "-".repeat(30));
         for symbol in tier1_symbols.iter().take(10) {
             let markets = symbol.market_availability.join("+");
-            println!("  {:<8} → {:<12} ({})", symbol.base_symbol, symbol.spot_equivalent, markets);
+            println!(
+                "  {:<8} → {:<12} ({})",
+                symbol.base_symbol, symbol.spot_equivalent, markets
+            );
         }
 
         if tier1_symbols.len() > 10 {
@@ -476,8 +532,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Generate and save comprehensive database
-    let database = analyzer.generate_comprehensive_database(&symbols_map, args.include_single_market);
-    let saved_path = analyzer.save_database(&database, &args.format, args.custom_suffix.as_deref())?;
+    let database =
+        analyzer.generate_comprehensive_database(&symbols_map, args.include_single_market);
+    let saved_path =
+        analyzer.save_database(&database, &args.format, args.custom_suffix.as_deref())?;
 
     // Generate tier1 symbols file for existing Rust pipeline integration
     analyzer.generate_tier1_file(&symbols_map)?;
@@ -496,9 +554,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  • Multi-market backtesting");
 
     if tier1_count > 0 {
-        println!("\n🏆 {} Tier-1 symbols ready for multi-market range bar construction", tier1_count);
+        println!(
+            "\n🏆 {} Tier-1 symbols ready for multi-market range bar construction",
+            tier1_count
+        );
     }
 
-    println!("\n✅ Analysis completed at {}", chrono::Utc::now().format("%H:%M:%S"));
+    println!(
+        "\n✅ Analysis completed at {}",
+        chrono::Utc::now().format("%H:%M:%S")
+    );
     Ok(())
 }

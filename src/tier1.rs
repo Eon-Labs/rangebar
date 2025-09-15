@@ -91,8 +91,8 @@
 
 /// Tier-1 symbol list (as of the latest analysis)
 pub const TIER1_SYMBOLS: &[&str] = &[
-    "AAVE", "ADA", "AVAX", "BCH", "BNB", "BTC", "DOGE", "ETH", "FIL",
-    "LINK", "LTC", "NEAR", "SOL", "SUI", "UNI", "WIF", "WLD", "XRP",
+    "AAVE", "ADA", "AVAX", "BCH", "BNB", "BTC", "DOGE", "ETH", "FIL", "LINK", "LTC", "NEAR", "SOL",
+    "SUI", "UNI", "WIF", "WLD", "XRP",
 ];
 
 /// Check if a symbol is a Tier-1 instrument

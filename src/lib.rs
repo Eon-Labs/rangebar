@@ -172,7 +172,7 @@ pub mod statistics;
 // Re-export commonly used types for convenience
 pub use fixed_point::FixedPoint;
 pub use range_bars::{ProcessingError, RangeBarProcessor};
-pub use tier1::{get_tier1_symbols, get_tier1_usdt_pairs, is_tier1_symbol, TIER1_SYMBOLS};
+pub use tier1::{TIER1_SYMBOLS, get_tier1_symbols, get_tier1_usdt_pairs, is_tier1_symbol};
 pub use types::{AggTrade, RangeBar};
 
 #[cfg(feature = "statistics")]
