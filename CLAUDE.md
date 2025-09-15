@@ -199,25 +199,50 @@ cargo test --test integration
 
 ## Publishing
 
-### Crates.io Publishing
-The rangebar Rust crate is configured for publishing to crates.io with:
-- **Version**: 0.4.1
+### Automated Publishing (2025 Best Practices)
+The rangebar crate uses **GitHub Actions** with **Trusted Publishing (OIDC)** for secure, automated releases:
+
+```bash
+# Create and push release tag (triggers automation)
+git tag -a v0.4.2 -m "Release v0.4.2: Your changes here"
+git push origin v0.4.2
+```
+
+**Automated Pipeline:**
+1. ✅ Cross-platform testing (Ubuntu + macOS)
+2. ✅ Version verification (tag matches Cargo.toml)
+3. ✅ Crates.io publishing via OIDC (30-min tokens)
+4. ✅ GitHub release with auto-generated changelog
+5. ✅ Artifact uploads (binaries)
+
+### Crates.io Configuration
+- **Version**: 0.4.1 (current release)
 - **License**: MIT
 - **Features**: statistics, data-integrity, arrow-support, python bindings
 - **Performance**: 137M+ trades/sec range bar construction
 
-### Authentication
-**Crates.io API token** is securely stored in macOS keychain:
-- **Keychain Service**: `crates.io-token`
+### Security & Authentication
+
+**Primary: Trusted Publishing (OIDC)**
+- No stored secrets required
+- 30-minute auto-expiring tokens
+- GitHub repository verification
+- Setup: crates.io → Settings → Trusted Publishers
+
+**Fallback: API Token (Keychain)**
+- **Service**: `crates.io-token`
 - **Account**: `terryli`
-- **Access**: Limited to cargo binary only
 - **Retrieval**: `security find-generic-password -a "terryli" -s "crates.io-token" -w`
 
-### Publishing Commands
+### Manual Publishing (Development)
 ```bash
-# Retrieve token from keychain and publish
+# Local publishing with keychain token
 CARGO_REGISTRY_TOKEN=$(security find-generic-password -a "terryli" -s "crates.io-token" -w) cargo publish --all-features
 
-# Or use cargo login (reads from keychain automatically)
-cargo publish --all-features
+# Dry run validation
+cargo publish --dry-run --all-features
 ```
+
+### GitHub Actions Workflows
+- **`.github/workflows/publish.yml`**: Release automation
+- **`.github/workflows/ci.yml`**: Continuous integration
