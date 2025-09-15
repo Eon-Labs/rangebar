@@ -1,0 +1,121 @@
+name: Release and Publish
+
+on:
+  push:
+    tags: ['v*']  # Trigger on version tags like v0.4.1, v1.0.0
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests
+        run: cargo test --all-features
+
+      - name: Run clippy
+        run: cargo clippy --all-features -- -D warnings
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+  publish:
+    name: Publish to crates.io
+    needs: test
+    runs-on: ubuntu-latest
+    environment: release  # Optional: for enhanced security
+    permissions:
+      id-token: write     # Required for OIDC trusted publishing
+      contents: write     # Required for GitHub releases
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Verify version matches tag
+        run: |
+          VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          TAG=${GITHUB_REF#refs/tags/v}
+          echo "Cargo.toml version: $VERSION"
+          echo "Git tag version: $TAG"
+          if [ "$VERSION" != "$TAG" ]; then
+            echo "❌ Version mismatch: Cargo.toml has $VERSION, tag is $TAG"
+            exit 1
+          fi
+          echo "✅ Version verification passed"
+
+      - name: Authenticate to crates.io (Trusted Publishing)
+        uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+
+      - name: Publish to crates.io
+        run: cargo publish --all-features
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+          body: |
+            ## 🚀 rangebar v${{ github.ref_name }}
+
+            Pure Rust implementation for non-lookahead bias range bar construction.
+
+            ### 🎯 Key Features
+            - ⚡ High-performance: 137M+ trades/sec processing
+            - 🔒 Non-lookahead bias: Temporal integrity guaranteed
+            - 📊 Tier-1 analysis: 18 premium cryptocurrency symbols
+            - 🔧 Pure Rust: No Python dependencies
+
+            ### 📦 Installation
+            ```bash
+            cargo add rangebar --features full-analytics
+            ```
+
+            ### 🔗 Quick Start
+            ```bash
+            # Discover Tier-1 symbols
+            cargo run --bin tier1-symbol-discovery
+
+            # Run parallel analysis
+            cargo run --bin rangebar-analyze
+            ```
+          files: |
+            target/release/tier1-symbol-discovery
+            target/release/rangebar-analyze
+            target/release/rangebar-export
