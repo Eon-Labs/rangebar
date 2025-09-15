@@ -33,6 +33,7 @@ impl FixedPoint {
     /// # Returns
     ///
     /// Result containing FixedPoint or parse error
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, FixedPointError> {
         // Handle empty string
         if s.is_empty() {
@@ -77,6 +78,7 @@ impl FixedPoint {
     }
 
     /// Convert FixedPoint to string representation with 8 decimal places
+    #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         let abs_value = self.0.abs();
         let integer_part = abs_value / SCALE;

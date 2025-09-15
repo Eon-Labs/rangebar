@@ -1,13 +1,39 @@
 [package]
-name = "rangebar-rust"
+name = "rangebar"
 version = "0.4.1"
 edition = "2024"
-description = "High-performance range bar construction with aligned JSON/Arrow formats for seamless Python integration"
+description = "High-performance non-lookahead bias range bar construction for Binance UM Futures - 137M+ trades/sec processing with comprehensive Tier-1 cryptocurrency analysis"
 authors = ["Terry Li <terry@eonlabs.com>"]
 license = "MIT"
 homepage = "https://github.com/Eon-Labs/rangebar"
 repository = "https://github.com/Eon-Labs/rangebar"
-documentation = "https://github.com/Eon-Labs/rangebar#readme"
+documentation = "https://docs.rs/rangebar"
+readme = "README.md"
+keywords = ["finance", "trading", "range-bars", "cryptocurrency", "binance"]
+categories = ["algorithms", "data-structures", "cryptography"]
+
+exclude = [
+    "*.py",
+    "*.ipynb",
+    "test_data/*",
+    "data/*",
+    "output/*",
+    "range_bar_charts/*",
+    "statistical_analysis/*",
+    "visualization/*",
+    "web/*",
+    "adversarial_test_output/*",
+    "milestones/*",
+    ".venv/*",
+    "repos/*"
+]
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lib]
+name = "rangebar"
+crate-type = ["rlib"]  # Pure Rust library
 
 [[bin]]
 name = "rangebar-export"
@@ -15,7 +41,7 @@ path = "src/bin/rangebar_export.rs"
 
 [[bin]]
 name = "rangebar-analyze"
-path = "src/bin/parallel_premium_analysis.rs"
+path = "src/bin/parallel_tier1_analysis.rs"
 
 [[bench]]
 name = "rangebar_bench"
@@ -53,8 +79,8 @@ md5 = { version = "0.7", optional = true }                               # MD5 c
 arrow = { version = "53.0", optional = true }
 parquet = { version = "53.0", optional = true }
 
-# Python bindings (optional)
-pyo3 = { version = "0.26", features = ["extension-module"], optional = true }
+# Python bindings (optional) - 2024 best practices
+pyo3 = { version = "0.26", features = ["extension-module", "abi3-py38"], optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
@@ -69,7 +95,7 @@ panic = "abort"         # Smaller binary size
 overflow-checks = true  # Keep overflow checks in debug builds
 
 [features]
-default = ["statistics", "data-integrity"]
+default = ["statistics", "data-integrity"]  # Core features for most users
 simd = []                                # Optional SIMD optimizations
 
 # Feature groups for modular compilation
@@ -77,7 +103,10 @@ statistics = ["dep:statrs", "dep:quantiles", "dep:polars", "dep:nalgebra"]
 arrow-support = ["dep:arrow", "dep:parquet"]
 data-integrity = ["dep:sha2", "dep:crc32fast", "dep:md5"]
 
+# Python integration (2024 best practices)
+python = ["dep:pyo3", "statistics"]  # Python requires statistics for full functionality
+
 # Combined feature sets
-python = ["dep:pyo3"]
 full-analytics = ["statistics", "data-integrity"]
 production = ["full-analytics", "arrow-support"]
+python-bindings = ["dep:pyo3", "statistics"]  # Optional Python bindings for those who want them

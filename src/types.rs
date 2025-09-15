@@ -78,7 +78,6 @@ pub struct RangeBar {
     pub last_id: i64,
 
     // === MARKET MICROSTRUCTURE ENHANCEMENTS ===
-
     /// Volume from buy-side trades (is_buyer_maker = false)
     /// Represents aggressive buying pressure
     pub buy_volume: FixedPoint,
@@ -341,8 +340,15 @@ mod tests {
         assert_eq!(bar.vwap.to_string(), "50031.25000000");
 
         println!("✅ Microstructure segregation test passed:");
-        println!("   Buy volume: {}, Sell volume: {}", bar.buy_volume.to_string(), bar.sell_volume.to_string());
-        println!("   Buy trades: {}, Sell trades: {}", bar.buy_trade_count, bar.sell_trade_count);
+        println!(
+            "   Buy volume: {}, Sell volume: {}",
+            bar.buy_volume.to_string(),
+            bar.sell_volume.to_string()
+        );
+        println!(
+            "   Buy trades: {}, Sell trades: {}",
+            bar.buy_trade_count, bar.sell_trade_count
+        );
         println!("   VWAP: {}", bar.vwap.to_string());
     }
 }

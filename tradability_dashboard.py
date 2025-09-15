@@ -78,7 +78,7 @@ class TradabilityDashboard:
         # Update layout
         fig.update_layout(
             title={
-                'text': f'🚀 Premium USDT Pairs Tradability Dashboard - {self.timestamp}<br><sub>Interactive Analysis of 18 Symbols across 5 Validated Metrics | Rank 1 = Best Performance</sub>',
+                'text': f'🚀 Tier-1 USDT Pairs Tradability Dashboard - {self.timestamp}<br><sub>Interactive Analysis of 18 Symbols across 5 Validated Metrics | Rank 1 = Best Performance</sub>',
                 'x': 0.5,
                 'font': {'size': 20, 'color': '#2E86AB'}
             },

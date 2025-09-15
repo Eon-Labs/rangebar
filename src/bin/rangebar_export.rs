@@ -13,10 +13,10 @@ use zip::ZipArchive;
 use sha2::{Digest, Sha256};
 
 // Use library types and statistics module
-use rangebar_rust::{AggTrade, FixedPoint, RangeBar};
+use rangebar::{AggTrade, FixedPoint, RangeBar};
 
 #[cfg(feature = "statistics")]
-use rangebar_rust::statistics::RangeBarMetadata;
+use rangebar::statistics::RangeBarMetadata;
 
 // Enhanced output result with comprehensive metadata
 #[derive(Debug, Serialize)]
@@ -50,18 +50,16 @@ struct ExportedFile {
     pub market_type: String, // "um", "cm", "spot"
 }
 
-
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)] // is_buyer_maker preserved for market microstructure analysis
 struct CsvAggTrade(
-    u64,  // agg_trade_id
-    f64,  // price
-    f64,  // quantity
-    u64,  // first_trade_id
-    u64,  // last_trade_id
-    u64,  // timestamp
-    #[serde(deserialize_with = "python_bool")]
-    bool, // is_buyer_maker
+    u64,                                             // agg_trade_id
+    f64,                                             // price
+    f64,                                             // quantity
+    u64,                                             // first_trade_id
+    u64,                                             // last_trade_id
+    u64,                                             // timestamp
+    #[serde(deserialize_with = "python_bool")] bool, // is_buyer_maker
 );
 
 /// Custom deserializer for Python-style booleans (True/False/true/false)
@@ -73,7 +71,10 @@ where
     match s.as_str() {
         "True" | "true" => Ok(true),
         "False" | "false" => Ok(false),
-        _ => Err(serde::de::Error::custom(format!("Invalid boolean value: {}", s))),
+        _ => Err(serde::de::Error::custom(format!(
+            "Invalid boolean value: {}",
+            s
+        ))),
     }
 }
 
@@ -81,11 +82,11 @@ where
 fn detect_csv_headers(buffer: &str) -> bool {
     if let Some(first_line) = buffer.lines().next() {
         // Check if first line contains typical aggTrades column names
-        first_line.contains("agg_trade_id") ||
-        first_line.contains("price") ||
-        first_line.contains("quantity") ||
-        first_line.contains("timestamp") ||
-        first_line.contains("is_buyer_maker")
+        first_line.contains("agg_trade_id")
+            || first_line.contains("price")
+            || first_line.contains("quantity")
+            || first_line.contains("timestamp")
+            || first_line.contains("is_buyer_maker")
     } else {
         false
     }
@@ -94,13 +95,13 @@ fn detect_csv_headers(buffer: &str) -> bool {
 impl From<CsvAggTrade> for AggTrade {
     fn from(csv_trade: CsvAggTrade) -> Self {
         AggTrade {
-            agg_trade_id: csv_trade.0 as i64,     // agg_trade_id
+            agg_trade_id: csv_trade.0 as i64, // agg_trade_id
             price: FixedPoint::from_str(&csv_trade.1.to_string()).unwrap_or(FixedPoint(0)), // price
             volume: FixedPoint::from_str(&csv_trade.2.to_string()).unwrap_or(FixedPoint(0)), // quantity
-            first_trade_id: csv_trade.3 as i64,   // first_trade_id
-            last_trade_id: csv_trade.4 as i64,    // last_trade_id
-            timestamp: csv_trade.5 as i64,        // timestamp
-            is_buyer_maker: csv_trade.6,          // is_buyer_maker - CRITICAL: Preserve order flow data
+            first_trade_id: csv_trade.3 as i64, // first_trade_id
+            last_trade_id: csv_trade.4 as i64,  // last_trade_id
+            timestamp: csv_trade.5 as i64,      // timestamp
+            is_buyer_maker: csv_trade.6, // is_buyer_maker - CRITICAL: Preserve order flow data
         }
     }
 }
@@ -148,10 +149,10 @@ impl ExportRangeBarProcessor {
         // OPTIMIZATION: Pre-allocate vector capacity based on expected range bars
         // For 0.2% threshold (200bps), expect ~16,000 bars for 3-month dataset
         let estimated_bars = match threshold_bps {
-            ..=20 => 20_000,   // 0.2% threshold and below
-            21..=50 => 8_000,  // 0.3-0.5% threshold
-            51..=80 => 5_000,  // 0.6-0.8% threshold
-            _ => 1_000,        // Higher thresholds
+            ..=20 => 20_000,  // 0.2% threshold and below
+            21..=50 => 8_000, // 0.3-0.5% threshold
+            51..=80 => 5_000, // 0.6-0.8% threshold
+            _ => 1_000,       // Higher thresholds
         };
 
         Self {
@@ -195,7 +196,7 @@ impl ExportRangeBarProcessor {
             self.current_bar = Some(InternalRangeBar {
                 open_time: trade.timestamp,
                 close_time: trade.timestamp,
-                open: trade.price,      // Copy, not clone
+                open: trade.price, // Copy, not clone
                 high: trade.price,
                 low: trade.price,
                 close: trade.price,
@@ -274,8 +275,8 @@ impl ExportRangeBarProcessor {
                 // Market microstructure fields
                 buy_volume: completed_bar.buy_volume,
                 sell_volume: completed_bar.sell_volume,
-                buy_trade_count: 0, // Would be computed properly
-                sell_trade_count: 0, // Would be computed properly
+                buy_trade_count: 0,       // Would be computed properly
+                sell_trade_count: 0,      // Would be computed properly
                 vwap: completed_bar.open, // Approximation
                 buy_turnover: completed_bar.buy_turnover,
                 sell_turnover: completed_bar.sell_turnover,
@@ -285,8 +286,16 @@ impl ExportRangeBarProcessor {
             self.bar_counter += 1;
 
             // Start new bar with breaching trade
-            let initial_buy_turnover = if trade.is_buyer_maker { 0 } else { trade_turnover };
-            let initial_sell_turnover = if trade.is_buyer_maker { trade_turnover } else { 0 };
+            let initial_buy_turnover = if trade.is_buyer_maker {
+                0
+            } else {
+                trade_turnover
+            };
+            let initial_sell_turnover = if trade.is_buyer_maker {
+                trade_turnover
+            } else {
+                0
+            };
 
             self.current_bar = Some(InternalRangeBar {
                 open_time: trade.timestamp,
@@ -301,8 +310,16 @@ impl ExportRangeBarProcessor {
                 first_id: trade.agg_trade_id,
                 last_id: trade.agg_trade_id,
                 // Market microstructure fields
-                buy_volume: if trade.is_buyer_maker { FixedPoint(0) } else { trade.volume },
-                sell_volume: if trade.is_buyer_maker { trade.volume } else { FixedPoint(0) },
+                buy_volume: if trade.is_buyer_maker {
+                    FixedPoint(0)
+                } else {
+                    trade.volume
+                },
+                sell_volume: if trade.is_buyer_maker {
+                    trade.volume
+                } else {
+                    FixedPoint(0)
+                },
                 buy_trade_count: if trade.is_buyer_maker { 0 } else { 1 },
                 sell_trade_count: if trade.is_buyer_maker { 1 } else { 0 },
                 vwap: trade.price,
@@ -547,7 +564,7 @@ impl RangeBarExporter {
             market_type,
         }
     }
-    
+
     /// Build the URL path based on market type
     fn get_market_path(&self) -> &str {
         match self.market_type.as_str() {
@@ -566,13 +583,13 @@ impl RangeBarExporter {
     ) -> Result<EnhancedExportResult, Box<dyn std::error::Error + Send + Sync>> {
         let start_time = std::time::Instant::now();
         let mut processor = ExportRangeBarProcessor::new((threshold_pct * 1_000_000.0) as u32);
-        let mut all_range_bars: Vec<RangeBar>; // Declared here, initialized later
+        let mut all_range_bars: Vec<RangeBar> = Vec::new(); // Initialize empty vector
         let mut total_trades = 0u64;
         let mut current_date = start_date;
 
         // Initialize statistical engine for comprehensive analysis
         #[cfg(feature = "statistics")]
-        let mut statistical_engine = rangebar_rust::statistics::StatisticalEngine::new();
+        let mut statistical_engine = rangebar::statistics::StatisticalEngine::new();
 
         #[cfg(feature = "statistics")]
         // OPTIMIZATION: Use Vec::with_capacity to avoid reallocations
@@ -684,14 +701,22 @@ impl RangeBarExporter {
         );
         let csv_filename = format!(
             "{}{}_rangebar_{}_{:.3}pct.csv",
-            if self.market_type == "spot" { "" } else { &format!("{}_", self.market_type) },
+            if self.market_type == "spot" {
+                ""
+            } else {
+                &format!("{}_", self.market_type)
+            },
             symbol,
             date_str,
             threshold_pct * 100.0
         );
         let json_filename = format!(
             "{}{}_rangebar_{}_{:.3}pct.json",
-            if self.market_type == "spot" { "" } else { &format!("{}_", self.market_type) },
+            if self.market_type == "spot" {
+                ""
+            } else {
+                &format!("{}_", self.market_type)
+            },
             symbol,
             date_str,
             threshold_pct * 100.0
@@ -783,7 +808,10 @@ impl RangeBarExporter {
         let date_str = date.format("%Y-%m-%d");
         let url = format!(
             "https://data.binance.vision/data/{}/daily/aggTrades/{}/{}-aggTrades-{}.zip",
-            self.get_market_path(), symbol, symbol, date_str
+            self.get_market_path(),
+            symbol,
+            symbol,
+            date_str
         );
 
         let response = tokio::time::timeout(
@@ -841,7 +869,10 @@ impl RangeBarExporter {
         // Download the corresponding CHECKSUM file
         let checksum_url = format!(
             "https://data.binance.vision/data/{}/daily/aggTrades/{}/{}-aggTrades-{}.zip.CHECKSUM",
-            self.get_market_path(), symbol, symbol, date_str
+            self.get_market_path(),
+            symbol,
+            symbol,
+            date_str
         );
 
         let response = tokio::time::timeout(
@@ -907,7 +938,10 @@ impl RangeBarExporter {
         let date_str = date.format("%Y-%m-%d");
         let url = format!(
             "https://data.binance.vision/data/{}/daily/aggTrades/{}/{}-aggTrades-{}.zip",
-            self.get_market_path(), symbol, symbol, date_str
+            self.get_market_path(),
+            symbol,
+            symbol,
+            date_str
         );
 
         let response = tokio::time::timeout(
@@ -974,7 +1008,10 @@ impl RangeBarExporter {
         let date_str = date.format("%Y-%m-%d");
         let url = format!(
             "https://data.binance.vision/data/{}/daily/aggTrades/{}/{}-aggTrades-{}.zip",
-            self.get_market_path(), symbol, symbol, date_str
+            self.get_market_path(),
+            symbol,
+            symbol,
+            date_str
         );
 
         let response = tokio::time::timeout(
@@ -1032,7 +1069,10 @@ impl RangeBarExporter {
         let date_str = date.format("%Y-%m-%d");
         let url = format!(
             "https://data.binance.vision/data/{}/daily/aggTrades/{}/{}-aggTrades-{}.zip",
-            self.get_market_path(), symbol, symbol, date_str
+            self.get_market_path(),
+            symbol,
+            symbol,
+            date_str
         );
 
         let response = tokio::time::timeout(
@@ -1112,7 +1152,7 @@ impl RangeBarExporter {
         &self,
         bars: &[RangeBar],
         filename: &str,
-        metadata: Option<&rangebar_rust::statistics::RangeBarMetadata>,
+        metadata: Option<&rangebar::statistics::RangeBarMetadata>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         use serde_json::json;
 
@@ -1175,12 +1215,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "Usage: {} <symbol> <start_date> <end_date> <threshold_pct> <output_dir> [market_type]",
             args[0]
         );
-        eprintln!(
-            "Market types: spot (default), um (UM Futures)"
-        );
-        eprintln!(
-            "Examples:"
-        );
+        eprintln!("Market types: spot (default), um (UM Futures)");
+        eprintln!("Examples:");
         eprintln!(
             "  {} BTCUSDT 2025-09-01 2025-09-09 0.008 ./output           # SPOT (default)",
             args[0]
@@ -1201,13 +1237,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let end_date = NaiveDate::parse_from_str(&args[3], "%Y-%m-%d")?;
     let threshold_pct: f64 = args[4].parse()?;
     let output_dir = args[5].clone();
-    
-    // Default to "spot", optional "um" for UM Futures  
+
+    // Default to "spot", optional "um" for UM Futures
     let market_type = if args.len() == 7 {
         match args[6].as_str() {
             "spot" | "um" => args[6].clone(),
             _ => {
-                eprintln!("Error: market_type must be 'spot' or 'um', got '{}'", args[6]);
+                eprintln!(
+                    "Error: market_type must be 'spot' or 'um', got '{}'",
+                    args[6]
+                );
                 std::process::exit(1);
             }
         }

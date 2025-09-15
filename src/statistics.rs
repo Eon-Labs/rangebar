@@ -1609,6 +1609,12 @@ impl Default for StatisticalConfig {
     }
 }
 
+impl Default for StatisticalEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StatisticalEngine {
     /// Create new statistical engine with default configuration
     pub fn new() -> Self {
@@ -1739,27 +1745,24 @@ impl StatisticalEngine {
         let stats_df = df
             .clone()
             .lazy()
-            .with_columns([
-                (col("price") * col("volume")).alias("turnover")
-            ])
+            .with_columns([(col("price") * col("volume")).alias("turnover")])
             .select([
                 // Price statistics
                 col("price").min().alias("min_price"),
                 col("price").max().alias("max_price"),
                 col("price").mean().alias("mean_price"),
                 col("price").std(1).alias("std_price"), // Sample std dev
-                (col("price") * col("price")).sum().alias("sum_squared_price"),
+                (col("price") * col("price"))
+                    .sum()
+                    .alias("sum_squared_price"),
                 col("price").sum().alias("sum_price"),
-
                 // Volume statistics
                 col("volume").min().alias("min_volume"),
                 col("volume").max().alias("max_volume"),
                 col("volume").sum().alias("total_volume"),
                 col("volume").mean().alias("mean_volume"),
-
                 // Turnover statistics
                 col("turnover").sum().alias("total_turnover"),
-
                 // Temporal statistics
                 col("timestamp").min().alias("first_timestamp"),
                 col("timestamp").max().alias("last_timestamp"),
@@ -1769,20 +1772,48 @@ impl StatisticalEngine {
 
         // Extract computed statistics from Polars result
         let row = stats_df.get_row(0)?;
-        let min_price = row.0[0].extract::<f64>().ok_or("Failed to extract min_price")?;
-        let max_price = row.0[1].extract::<f64>().ok_or("Failed to extract max_price")?;
-        let mean_price = row.0[2].extract::<f64>().ok_or("Failed to extract mean_price")?;
-        let std_dev = row.0[3].extract::<f64>().ok_or("Failed to extract std_dev")?;
-        let _sum_squared_price = row.0[4].extract::<f64>().ok_or("Failed to extract sum_squared_price")?;
-        let _sum_price = row.0[5].extract::<f64>().ok_or("Failed to extract sum_price")?;
-        let min_volume = row.0[6].extract::<f64>().ok_or("Failed to extract min_volume")?;
-        let max_volume = row.0[7].extract::<f64>().ok_or("Failed to extract max_volume")?;
-        let total_volume = row.0[8].extract::<f64>().ok_or("Failed to extract total_volume")?;
-        let mean_volume = row.0[9].extract::<f64>().ok_or("Failed to extract mean_volume")?;
-        let total_turnover = row.0[10].extract::<f64>().ok_or("Failed to extract total_turnover")?;
-        let first_timestamp = row.0[11].extract::<i64>().ok_or("Failed to extract first_timestamp")? as u64;
-        let last_timestamp = row.0[12].extract::<i64>().ok_or("Failed to extract last_timestamp")? as u64;
-        let trade_count = row.0[13].extract::<u32>().ok_or("Failed to extract trade_count")? as u64;
+        let min_price = row.0[0]
+            .extract::<f64>()
+            .ok_or("Failed to extract min_price")?;
+        let max_price = row.0[1]
+            .extract::<f64>()
+            .ok_or("Failed to extract max_price")?;
+        let mean_price = row.0[2]
+            .extract::<f64>()
+            .ok_or("Failed to extract mean_price")?;
+        let std_dev = row.0[3]
+            .extract::<f64>()
+            .ok_or("Failed to extract std_dev")?;
+        let _sum_squared_price = row.0[4]
+            .extract::<f64>()
+            .ok_or("Failed to extract sum_squared_price")?;
+        let _sum_price = row.0[5]
+            .extract::<f64>()
+            .ok_or("Failed to extract sum_price")?;
+        let min_volume = row.0[6]
+            .extract::<f64>()
+            .ok_or("Failed to extract min_volume")?;
+        let max_volume = row.0[7]
+            .extract::<f64>()
+            .ok_or("Failed to extract max_volume")?;
+        let total_volume = row.0[8]
+            .extract::<f64>()
+            .ok_or("Failed to extract total_volume")?;
+        let mean_volume = row.0[9]
+            .extract::<f64>()
+            .ok_or("Failed to extract mean_volume")?;
+        let total_turnover = row.0[10]
+            .extract::<f64>()
+            .ok_or("Failed to extract total_turnover")?;
+        let first_timestamp = row.0[11]
+            .extract::<i64>()
+            .ok_or("Failed to extract first_timestamp")? as u64;
+        let last_timestamp = row.0[12]
+            .extract::<i64>()
+            .ok_or("Failed to extract last_timestamp")? as u64;
+        let trade_count = row.0[13]
+            .extract::<u32>()
+            .ok_or("Failed to extract trade_count")? as u64;
 
         // ANALYTICAL ACCURACY: Preserve median calculation for full statistical rigor
         let median = if trades.len() > 1000 {
@@ -1792,7 +1823,9 @@ impl StatisticalEngine {
                 .select([col("price").quantile(lit(0.5), QuantileMethod::Linear)])
                 .collect()?
                 .get_row(0)?
-                .0[0].extract::<f64>().ok_or("Failed to extract median")?
+                .0[0]
+                .extract::<f64>()
+                .ok_or("Failed to extract median")?
         } else {
             // For smaller datasets, use exact median
             let mut sorted_prices = prices.clone();

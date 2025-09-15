@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Enhanced Tradability Dashboard for 18 Premium USDT Pairs
+Enhanced Tradability Dashboard for 18 Tier-1 USDT Pairs
 IMPROVED VERSION: Better readability, larger text, enhanced visibility
 """
 
@@ -198,7 +198,7 @@ class EnhancedTradabilityDashboard:
             row=row, col=col
         )
         
-    def save_enhanced_dashboard(self, output_dir: str = "./output/premium_analysis/tradability_analysis/"):
+    def save_enhanced_dashboard(self, output_dir: str = "./output/tier1_analysis/tradability_analysis/"):
         """Save enhanced dashboard with high-quality output"""
         
         output_path = Path(output_dir)
@@ -277,7 +277,7 @@ def main():
     """Main execution function for enhanced dashboard"""
     
     # Find latest comprehensive CSV file
-    analysis_dir = Path("./output/premium_analysis/tradability_analysis/")
+    analysis_dir = Path("./output/tier1_analysis/tradability_analysis/")
     csv_files = list(analysis_dir.glob("comprehensive_tradability_rankings_*.csv"))
     
     if not csv_files:

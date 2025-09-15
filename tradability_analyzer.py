@@ -398,7 +398,7 @@ class TradabilityAnalyzer:
     def run_analysis(self) -> Dict[str, Any]:
         """Run complete tradability analysis pipeline"""
         
-        print("🚀 Starting Premium Symbol Tradability Analysis")
+        print("🚀 Starting Tier-1 Symbol Tradability Analysis")
         print("=" * 80)
         
         # Step 1: Discover completed symbols
