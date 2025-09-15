@@ -199,14 +199,50 @@ impl BinanceMultiMarketAnalyzer {
         print!("  📡 UM Futures (USDT/USDC perpetuals)...");
         let um_url = format!("{}/exchangeInfo", self.um_api_base);
         let um_response = self.client.get(&um_url).send().await?;
-        let um_data: ExchangeInfo = um_response.json().await?;
+
+        // Check response status
+        if !um_response.status().is_success() {
+            let status = um_response.status();
+            let error_text = um_response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Failed to read response".to_string());
+            return Err(format!("UM Futures API error {}: {}", status, error_text).into());
+        }
+
+        let response_text = um_response.text().await?;
+        let um_data: ExchangeInfo = serde_json::from_str(&response_text).map_err(|e| {
+            format!(
+                "Failed to parse UM response: {}. Response: {}",
+                e,
+                &response_text[..response_text.len().min(500)]
+            )
+        })?;
         println!(" ✅ {} symbols", um_data.symbols.len());
 
         // Fetch CM Futures data
         print!("  📡 CM Futures (Coin-margined)...");
         let cm_url = format!("{}/exchangeInfo", self.cm_api_base);
         let cm_response = self.client.get(&cm_url).send().await?;
-        let cm_data: ExchangeInfo = cm_response.json().await?;
+
+        // Check response status
+        if !cm_response.status().is_success() {
+            let status = cm_response.status();
+            let error_text = cm_response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Failed to read response".to_string());
+            return Err(format!("CM Futures API error {}: {}", status, error_text).into());
+        }
+
+        let response_text = cm_response.text().await?;
+        let cm_data: ExchangeInfo = serde_json::from_str(&response_text).map_err(|e| {
+            format!(
+                "Failed to parse CM response: {}. Response: {}",
+                e,
+                &response_text[..response_text.len().min(500)]
+            )
+        })?;
         println!(" ✅ {} symbols", cm_data.symbols.len());
 
         Ok((um_data, cm_data))
