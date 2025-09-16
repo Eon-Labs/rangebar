@@ -56,6 +56,27 @@ impl RangeBarProcessor {
         None
     }
 
+    /// Process trades into range bars including incomplete bars for analysis
+    ///
+    /// # Arguments
+    ///
+    /// * `trades` - Slice of aggregated trades sorted by (timestamp, agg_trade_id)
+    ///
+    /// # Returns
+    ///
+    /// Vector of range bars including incomplete bars at end of data
+    ///
+    /// # Warning
+    ///
+    /// This method is for analysis purposes only. Incomplete bars violate the
+    /// fundamental range bar algorithm and should not be used for production trading.
+    pub fn process_trades_with_incomplete(
+        &mut self,
+        trades: &[AggTrade],
+    ) -> Result<Vec<RangeBar>, ProcessingError> {
+        self.process_trades_with_options(trades, true)
+    }
+
     /// Process trades into range bars
     ///
     /// # Arguments
@@ -64,10 +85,28 @@ impl RangeBarProcessor {
     ///
     /// # Returns
     ///
-    /// Vector of completed range bars
+    /// Vector of completed range bars (ONLY bars that breached thresholds)
     pub fn process_trades(
         &mut self,
         trades: &[AggTrade],
+    ) -> Result<Vec<RangeBar>, ProcessingError> {
+        self.process_trades_with_options(trades, false)
+    }
+
+    /// Process trades into range bars with options for including incomplete bars
+    ///
+    /// # Arguments
+    ///
+    /// * `trades` - Slice of aggregated trades sorted by (timestamp, agg_trade_id)
+    /// * `include_incomplete` - Whether to include incomplete bars at end of processing
+    ///
+    /// # Returns
+    ///
+    /// Vector of range bars
+    pub fn process_trades_with_options(
+        &mut self,
+        trades: &[AggTrade],
+        include_incomplete: bool,
     ) -> Result<Vec<RangeBar>, ProcessingError> {
         if trades.is_empty() {
             return Ok(Vec::new());
@@ -122,9 +161,12 @@ impl RangeBarProcessor {
             }
         }
 
-        // Add final partial bar if it exists
-        if let Some(bar_state) = current_bar {
-            bars.push(bar_state.bar);
+        // Add final partial bar only if explicitly requested
+        // This preserves algorithm integrity: bars should only close on threshold breach
+        if include_incomplete {
+            if let Some(bar_state) = current_bar {
+                bars.push(bar_state.bar);
+            }
         }
 
         Ok(bars)
@@ -257,12 +299,15 @@ mod tests {
             create_test_trade(3, "49700.0", "2.0", 3000), // -0.6%
         ];
 
+        // Test strict algorithm compliance: no bars should be created without breach
         let bars = processor.process_trades(&trades).unwrap();
+        assert_eq!(bars.len(), 0, "Strict algorithm should not create bars without breach");
 
-        // No breach, so only one partial bar
-        assert_eq!(bars.len(), 1);
+        // Test analysis mode: incomplete bar should be available for analysis
+        let bars_with_incomplete = processor.process_trades_with_incomplete(&trades).unwrap();
+        assert_eq!(bars_with_incomplete.len(), 1, "Analysis mode should include incomplete bar");
 
-        let bar = &bars[0];
+        let bar = &bars_with_incomplete[0];
         assert_eq!(bar.open.to_string(), "50000.00000000");
         assert_eq!(bar.high.to_string(), "50300.00000000");
         assert_eq!(bar.low.to_string(), "49700.00000000");
@@ -277,12 +322,12 @@ mod tests {
             create_test_trade(1, "50000.0", "1.0", 1000), // Open
             create_test_trade(2, "50200.0", "1.0", 2000), // +0.4%
             create_test_trade(3, "50400.0", "1.0", 3000), // +0.8% BREACH
-            create_test_trade(4, "50500.0", "1.0", 4000), // New bar
+            create_test_trade(4, "50500.0", "1.0", 4000), // New bar (incomplete)
         ];
 
+        // Test strict algorithm: only completed bars (with breach)
         let bars = processor.process_trades(&trades).unwrap();
-
-        assert_eq!(bars.len(), 2);
+        assert_eq!(bars.len(), 1, "Strict algorithm should only return completed bars");
 
         // First bar should close at breach
         let bar1 = &bars[0];
@@ -291,8 +336,12 @@ mod tests {
         assert_eq!(bar1.high.to_string(), "50400.00000000");
         assert_eq!(bar1.low.to_string(), "50000.00000000");
 
+        // Test analysis mode: includes incomplete second bar
+        let bars_with_incomplete = processor.process_trades_with_incomplete(&trades).unwrap();
+        assert_eq!(bars_with_incomplete.len(), 2, "Analysis mode should include incomplete bars");
+
         // Second bar should start at next tick price (not breach price)
-        let bar2 = &bars[1];
+        let bar2 = &bars_with_incomplete[1];
         assert_eq!(bar2.open.to_string(), "50500.00000000"); // Next tick after breach
         assert_eq!(bar2.close.to_string(), "50500.00000000");
     }

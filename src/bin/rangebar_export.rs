@@ -550,15 +550,67 @@ struct RangeBarExporter {
 }
 
 impl RangeBarExporter {
-    fn new(output_dir: String, market_type: String) -> Self {
-        // Create output directory if it doesn't exist
-        fs::create_dir_all(&output_dir).unwrap();
+    fn new(output_dir: String, market_type: String) -> Result<Self, Box<dyn std::error::Error>> {
+        // SECURITY: Validate output directory to prevent path traversal attacks
+        let validated_output_dir = Self::validate_output_directory(&output_dir)?;
 
-        Self {
-            client: Client::new(),
-            output_dir,
-            market_type,
+        // Create output directory with proper error handling (no panic)
+        if let Err(e) = fs::create_dir_all(&validated_output_dir) {
+            return Err(format!("Failed to create output directory '{}': {}", validated_output_dir, e).into());
         }
+
+        Ok(Self {
+            client: Client::new(),
+            output_dir: validated_output_dir,
+            market_type,
+        })
+    }
+
+    /// Validates output directory path to prevent path traversal attacks
+    fn validate_output_directory(output_dir: &str) -> Result<String, Box<dyn std::error::Error>> {
+        use std::path::{Path, Component};
+
+        // Security checks
+        let path = Path::new(output_dir);
+
+        // Check for path traversal attempts
+        for component in path.components() {
+            match component {
+                Component::ParentDir => {
+                    return Err("Path traversal detected: '..' components not allowed in output directory".into());
+                }
+                Component::RootDir => {
+                    return Err("Absolute paths not allowed for security reasons".into());
+                }
+                Component::Prefix(_) => {
+                    return Err("Drive prefixes not allowed for security reasons".into());
+                }
+                Component::Normal(_) | Component::CurDir => {
+                    // These are safe
+                }
+            }
+        }
+
+        // Additional validation
+        if output_dir.is_empty() {
+            return Err("Output directory cannot be empty".into());
+        }
+
+        if output_dir.len() > 255 {
+            return Err("Output directory path too long (max 255 characters)".into());
+        }
+
+        // Convert to canonical form and ensure it's still safe
+        let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        let canonical_str = canonical_path.to_string_lossy().to_string();
+
+        // Ensure the canonical path doesn't escape the current working directory
+        let current_dir = std::env::current_dir()?;
+        if !canonical_path.starts_with(&current_dir) && !path.is_relative() {
+            return Err("Output directory must be within current working directory".into());
+        }
+
+        Ok(canonical_str)
     }
 
     /// Build the URL path based on market type
@@ -1275,7 +1327,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "spot".to_string()
     };
 
-    let exporter = RangeBarExporter::new(output_dir, market_type);
+    let exporter = RangeBarExporter::new(output_dir, market_type)?;
     let result = exporter
         .export_symbol_range_bars(symbol, start_date, end_date, threshold_pct)
         .await

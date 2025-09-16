@@ -10,7 +10,7 @@
 use chrono::Utc;
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 use std::fs;
 use std::path::Path;
 
@@ -253,10 +253,10 @@ impl BinanceMultiMarketAnalyzer {
         &self,
         um_data: &ExchangeInfo,
         cm_data: &ExchangeInfo,
-    ) -> HashMap<String, MultiMarketSymbol> {
+    ) -> BTreeMap<String, MultiMarketSymbol> {
         println!("🔄 Analyzing multi-market symbol availability...");
 
-        let mut symbols_map = HashMap::new();
+        let mut symbols_map = BTreeMap::new();
 
         // Process UM futures (USDT + USDC)
         for symbol_info in &um_data.symbols {
@@ -355,7 +355,7 @@ impl BinanceMultiMarketAnalyzer {
     /// Generate comprehensive database with metadata
     fn generate_comprehensive_database(
         &self,
-        symbols_map: &HashMap<String, MultiMarketSymbol>,
+        symbols_map: &BTreeMap<String, MultiMarketSymbol>,
         include_single_market: bool,
     ) -> ComprehensiveDatabase {
         let now = Utc::now();
@@ -491,7 +491,7 @@ impl BinanceMultiMarketAnalyzer {
     /// Generate Tier-1 symbols file for existing Rust pipeline
     fn generate_tier1_file(
         &self,
-        symbols_map: &HashMap<String, MultiMarketSymbol>,
+        symbols_map: &BTreeMap<String, MultiMarketSymbol>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let tier1_symbols: Vec<String> = symbols_map
             .values()
@@ -500,7 +500,7 @@ impl BinanceMultiMarketAnalyzer {
             .collect();
 
         // Save to /tmp/ for existing pipeline compatibility
-        let tier1_content = tier1_symbols.join("\n");
+        let tier1_content = tier1_symbols.join("\n") + "\n";
         fs::write("/tmp/tier1_usdt_pairs.txt", tier1_content)?;
 
         println!(

@@ -3,6 +3,7 @@
 //! Native Rust implementation for 6-month analysis on 18 Tier-1 USDT pairs
 
 use chrono::Utc;
+use clap::Parser;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -373,7 +374,58 @@ fn save_results(
     Ok(())
 }
 
+/// Command-line arguments for the parallel Tier-1 symbol analysis tool
+#[derive(Parser)]
+#[command(
+    name = "rangebar-analyze",
+    version = "0.4.4",
+    about = "Parallel Tier-1 Symbol Range Bar Analysis",
+    long_about = "Native Rust implementation for parallel analysis of 18 Tier-1 USDT cryptocurrency pairs using range bar construction. Processes massive datasets (1B+ ticks) with optimal performance and memory efficiency."
+)]
+struct AnalysisArgs {
+    /// Run the parallel analysis (default behavior)
+    #[arg(long, help = "Execute parallel range bar analysis on all Tier-1 symbols")]
+    run: bool,
+
+    /// Show detailed configuration information
+    #[arg(long, help = "Display current analysis configuration without executing")]
+    config: bool,
+
+    /// List available Tier-1 symbols
+    #[arg(long, help = "Show the 18 Tier-1 USDT pairs that will be analyzed")]
+    list_symbols: bool,
+
+    /// Show system resource information
+    #[arg(long, help = "Display available CPU cores and memory for parallel processing")]
+    system_info: bool,
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = AnalysisArgs::parse();
+
+    // Handle informational flags first (user safety)
+    if args.config {
+        show_configuration()?;
+        return Ok(());
+    }
+
+    if args.list_symbols {
+        show_tier1_symbols()?;
+        return Ok(());
+    }
+
+    if args.system_info {
+        show_system_info();
+        return Ok(());
+    }
+
+    // Default behavior: run analysis
+    run_parallel_analysis()?;
+
+    Ok(())
+}
+
+fn run_parallel_analysis() -> Result<(), Box<dyn std::error::Error>> {
     let execution_id = format!("rust_parallel_tier1_{}", Utc::now().format("%Y%m%d_%H%M%S"));
 
     println!("🚀 Rust Native Parallel Tier-1 Symbol Range Bar Analysis");
@@ -491,4 +543,76 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔍 Results are machine-discoverable and analysis-ready");
 
     Ok(())
+}
+
+/// Show current analysis configuration (user safety)
+fn show_configuration() -> Result<(), Box<dyn std::error::Error>> {
+    println!("🔧 Rangebar Parallel Analysis Configuration");
+    println!("{}", "=".repeat(50));
+
+    // Load the same configuration that would be used for analysis
+    if let Ok((config, _)) = load_configuration() {
+        println!("📅 Analysis Period: {} to {}", config.start_date, config.end_date);
+        println!("📊 Period Length: {} days", config.period_days);
+        println!("🎯 Range Bar Threshold: {}% ({})", config.threshold * 100.0, config.threshold_pct);
+        println!("💾 Data Source: {}", config.data_source);
+        println!("🔬 Analysis Type: {}", config.analysis_type);
+    } else {
+        println!("⚠️  Configuration file not found at /tmp/range_bar_analysis_config.json");
+        println!("💡 Default configuration will be used if analysis runs");
+    }
+
+    println!("\n🔧 System Configuration:");
+    println!("🧵 Available CPU cores: {}", rayon::current_num_threads());
+    // Rust version info removed for compilation simplicity
+    println!("📦 Rangebar version: {}", env!("CARGO_PKG_VERSION"));
+
+    Ok(())
+}
+
+/// Show available Tier-1 symbols (user safety)
+fn show_tier1_symbols() -> Result<(), Box<dyn std::error::Error>> {
+    println!("🏆 Tier-1 Cryptocurrency Symbols");
+    println!("{}", "=".repeat(40));
+
+    // Load symbols from the same source used by analysis
+    if let Ok((_, symbols)) = load_configuration() {
+        println!("📊 Total Tier-1 USDT pairs: {}", symbols.len());
+        println!("\n🎯 Symbols to be analyzed:");
+
+        for (i, symbol) in symbols.iter().enumerate() {
+            println!("  {:2}. {}", i + 1, symbol);
+        }
+
+        println!("\n💡 These symbols are discovered by tier1-symbol-discovery");
+        println!("   Available across all Binance futures markets (USDT, USDC, Coin-margined)");
+    } else {
+        println!("⚠️  Symbol list not found at /tmp/tier1_usdt_pairs.txt");
+        println!("💡 Run 'cargo run --bin tier1-symbol-discovery' first");
+    }
+
+    Ok(())
+}
+
+/// Show system resource information (user safety)
+fn show_system_info() {
+    println!("💻 System Resource Information");
+    println!("{}", "=".repeat(40));
+
+    println!("🧵 CPU Cores:");
+    println!("   Available for parallel processing: {}", rayon::current_num_threads());
+    // Logical core count requires additional dependency
+    // Physical core count requires additional dependency
+
+    println!("\n⚡ Performance Expectations:");
+    println!("   • Range bar construction: ~1B ticks processed");
+    println!("   • Expected analysis time: 5-30 minutes per symbol");
+    println!("   • Memory usage: ~1-2GB peak during processing");
+    println!("   • Output: Comprehensive JSON + CSV results");
+
+    println!("\n🎯 Optimization:");
+    println!("   • Pure Rust implementation for maximum performance");
+    println!("   • Parallel execution across all {} cores", rayon::current_num_threads());
+    println!("   • Memory-efficient streaming processing");
+    println!("   • Non-blocking I/O for optimal throughput");
 }

@@ -159,11 +159,15 @@
 
 pub mod fixed_point;
 pub mod range_bars;
+pub mod range_bars_debug;
 pub mod tier1;
 pub mod types;
 
 #[cfg(feature = "statistics")]
 pub mod statistics;
+
+#[cfg(feature = "gpu")]
+pub mod gpu;
 
 // TODO: Python bindings module (when python-bindings feature is enabled)
 // #[cfg(feature = "python-bindings")]
@@ -180,6 +184,15 @@ pub use statistics::{
     AlgorithmConfig, DatasetInfo, FormatMetadata, PerformanceMetrics, QualityMetrics,
     RangeBarMetadata, StatisticalConfig, StatisticalEngine, Statistics,
 };
+
+#[cfg(feature = "gpu")]
+pub use gpu::{
+    detect_gpu_device, get_gpu_info, is_gpu_available, GpuDevice, GpuRangeBarProcessor,
+    MultiSymbolGpuProcessor, MultiSymbolGpuError, MAX_TIER1_SYMBOLS, MAX_TRADES_PER_SYMBOL,
+};
+
+#[cfg(feature = "gpu")]
+pub use gpu::benchmarks::GpuBenchmarkSuite;
 
 /// Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
