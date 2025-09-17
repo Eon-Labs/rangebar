@@ -556,7 +556,11 @@ impl RangeBarExporter {
 
         // Create output directory with proper error handling (no panic)
         if let Err(e) = fs::create_dir_all(&validated_output_dir) {
-            return Err(format!("Failed to create output directory '{}': {}", validated_output_dir, e).into());
+            return Err(format!(
+                "Failed to create output directory '{}': {}",
+                validated_output_dir, e
+            )
+            .into());
         }
 
         Ok(Self {
@@ -568,7 +572,7 @@ impl RangeBarExporter {
 
     /// Validates output directory path to prevent path traversal attacks
     fn validate_output_directory(output_dir: &str) -> Result<String, Box<dyn std::error::Error>> {
-        use std::path::{Path, Component};
+        use std::path::{Component, Path};
 
         // Security checks
         let path = Path::new(output_dir);
@@ -577,7 +581,10 @@ impl RangeBarExporter {
         for component in path.components() {
             match component {
                 Component::ParentDir => {
-                    return Err("Path traversal detected: '..' components not allowed in output directory".into());
+                    return Err(
+                        "Path traversal detected: '..' components not allowed in output directory"
+                            .into(),
+                    );
                 }
                 Component::RootDir => {
                     return Err("Absolute paths not allowed for security reasons".into());

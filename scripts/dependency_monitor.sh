@@ -90,10 +90,21 @@ security_audit() {
     
     # Check for known vulnerable versions
     log_info "Checking dependency versions for known issues..."
-    # Custom checks for critical dependencies
-    
-    local polars_version=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "polars") | .version' 2>/dev/null || echo "not found")
-    local pyo3_version=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "pyo3") | .version' 2>/dev/null || echo "not found")
+    # Custom checks for critical dependencies - secure metadata parsing
+
+    local metadata_file="/tmp/cargo_metadata_$$.json"
+    local polars_version="not found"
+    local pyo3_version="not found"
+
+    # Securely capture cargo metadata
+    if cargo metadata --format-version 1 > "$metadata_file" 2>/dev/null; then
+        # Safely extract versions using controlled jq operations
+        polars_version=$(jq -r '.packages[] | select(.name == "polars") | .version' < "$metadata_file" 2>/dev/null || echo "not found")
+        pyo3_version=$(jq -r '.packages[] | select(.name == "pyo3") | .version' < "$metadata_file" 2>/dev/null || echo "not found")
+        rm -f "$metadata_file"
+    else
+        log_warn "Failed to retrieve cargo metadata for security check"
+    fi
     
     log_info "Critical dependency versions:"
     log_info "  polars: $polars_version"
@@ -109,23 +120,37 @@ dependency_health_check() {
     log_info "Running comprehensive dependency health check..."
     cd "$PROJECT_ROOT"
     
-    # Check for duplicate dependencies
+    # Check for duplicate dependencies - secure command execution
     log_info "Checking for duplicate dependencies..."
     if command -v cargo-tree &> /dev/null; then
-        local duplicates=$(cargo tree --duplicates --format "{p}")
-        if [[ -n "$duplicates" ]]; then
-            log_warn "Duplicate dependencies found:"
-            echo "$duplicates"
+        local duplicates_file="/tmp/cargo_duplicates_$$.txt"
+        if cargo tree --duplicates --format "{p}" > "$duplicates_file" 2>/dev/null; then
+            if [[ -s "$duplicates_file" ]]; then
+                log_warn "Duplicate dependencies found:"
+                cat "$duplicates_file"
+            else
+                log_success "No duplicate dependencies found"
+            fi
+            rm -f "$duplicates_file"
         else
-            log_success "No duplicate dependencies found"
+            log_warn "Failed to check for duplicate dependencies"
         fi
     else
         log_info "cargo-tree not available - skipping duplicate check"
     fi
     
-    # Analyze dependency sizes
+    # Analyze dependency sizes - secure metadata parsing
     log_info "Analyzing build dependency impact..."
-    local dep_count=$(cargo metadata --format-version 1 | jq '.packages | length' 2>/dev/null || echo "unknown")
+    local metadata_file="/tmp/cargo_metadata_deps_$$.json"
+    local dep_count="unknown"
+
+    if cargo metadata --format-version 1 > "$metadata_file" 2>/dev/null; then
+        dep_count=$(jq '.packages | length' < "$metadata_file" 2>/dev/null || echo "unknown")
+        rm -f "$metadata_file"
+    else
+        log_warn "Failed to retrieve cargo metadata for dependency analysis"
+    fi
+
     log_info "Total dependencies: $dep_count"
     
     # License compliance check

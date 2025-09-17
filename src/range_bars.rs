@@ -301,11 +301,19 @@ mod tests {
 
         // Test strict algorithm compliance: no bars should be created without breach
         let bars = processor.process_trades(&trades).unwrap();
-        assert_eq!(bars.len(), 0, "Strict algorithm should not create bars without breach");
+        assert_eq!(
+            bars.len(),
+            0,
+            "Strict algorithm should not create bars without breach"
+        );
 
         // Test analysis mode: incomplete bar should be available for analysis
         let bars_with_incomplete = processor.process_trades_with_incomplete(&trades).unwrap();
-        assert_eq!(bars_with_incomplete.len(), 1, "Analysis mode should include incomplete bar");
+        assert_eq!(
+            bars_with_incomplete.len(),
+            1,
+            "Analysis mode should include incomplete bar"
+        );
 
         let bar = &bars_with_incomplete[0];
         assert_eq!(bar.open.to_string(), "50000.00000000");
@@ -327,7 +335,11 @@ mod tests {
 
         // Test strict algorithm: only completed bars (with breach)
         let bars = processor.process_trades(&trades).unwrap();
-        assert_eq!(bars.len(), 1, "Strict algorithm should only return completed bars");
+        assert_eq!(
+            bars.len(),
+            1,
+            "Strict algorithm should only return completed bars"
+        );
 
         // First bar should close at breach
         let bar1 = &bars[0];
@@ -338,7 +350,11 @@ mod tests {
 
         // Test analysis mode: includes incomplete second bar
         let bars_with_incomplete = processor.process_trades_with_incomplete(&trades).unwrap();
-        assert_eq!(bars_with_incomplete.len(), 2, "Analysis mode should include incomplete bars");
+        assert_eq!(
+            bars_with_incomplete.len(),
+            2,
+            "Analysis mode should include incomplete bars"
+        );
 
         // Second bar should start at next tick price (not breach price)
         let bar2 = &bars_with_incomplete[1];

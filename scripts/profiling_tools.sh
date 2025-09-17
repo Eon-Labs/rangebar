@@ -44,7 +44,7 @@ install_profiling_tools() {
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         log_info "Linux detected - checking for perf..."
         if ! command -v perf &> /dev/null; then
-            log_warn "perf not found. Install with: sudo apt-get install linux-perf"
+            log_warn "perf not found. Install with: apt-get install linux-perf (requires admin privileges)"
         else
             log_success "perf available"
         fi
@@ -78,22 +78,26 @@ generate_flamegraph() {
     
     local output_file="$PROFILE_DATA_DIR/flamegraph_$(date +%Y%m%d_%H%M%S).svg"
     
-    # Use cargo-flamegraph with the benchmark
-    sudo cargo flamegraph \
+    # Use cargo-flamegraph with the benchmark (user must have perf permissions)
+    log_info "Note: Flamegraph requires perf permissions. May need admin privileges to configure perf_event_paranoid on Linux"
+
+    # Validate benchmark executable exists before attempting profiling
+    if ! cargo bench --bench rangebar_bench --no-run &> /dev/null; then
+        log_error "Benchmark executable not found. Run 'cargo build --release --bench rangebar_bench' first"
+        return 1
+    fi
+
+    cargo flamegraph \
         --bench rangebar_bench \
         --output "$output_file" \
         -- --bench "rangebar_processing/$test_name"
     
     log_success "Flamegraph saved to: $output_file"
     
-    # Try to open the flamegraph
-    if command -v open &> /dev/null; then
-        open "$output_file"
-    elif command -v xdg-open &> /dev/null; then
-        xdg-open "$output_file"
-    else
-        log_info "Open $output_file in a browser to view the flamegraph"
-    fi
+    # Security: Do not automatically open files - inform user instead
+    log_info "Flamegraph generated: $output_file"
+    log_info "To view: open '$output_file' in a web browser"
+    log_warn "Security: Automatic file opening disabled - manually verify file before opening"
 }
 
 cpu_profiling() {
@@ -112,9 +116,18 @@ cpu_profiling() {
     if [[ "$OSTYPE" == "linux-gnu"* ]]; then
         log_info "Running perf analysis..."
         if command -v perf &> /dev/null; then
-            # Record performance data
+            # Record performance data - validate executable exists
+            local bench_executable
+            bench_executable=$(find ./target/release/deps -name "rangebar_bench-*" -type f -executable | head -1)
+
+            if [[ -z "$bench_executable" ]]; then
+                log_error "Benchmark executable not found. Run 'cargo build --release --bench rangebar_bench' first"
+                return 1
+            fi
+
+            log_info "Using benchmark executable: $bench_executable"
             perf record -g --call-graph=dwarf -o "$profile_dir/perf.data" \
-                ./target/release/deps/rangebar_bench-* --bench "rangebar_processing/1000000"
+                "$bench_executable" --bench "rangebar_processing/1000000"
             
             # Generate report
             perf report -i "$profile_dir/perf.data" > "$profile_dir/cpu_report.txt"
@@ -124,7 +137,13 @@ cpu_profiling() {
         fi
     elif [[ "$OSTYPE" == "darwin"* ]]; then
         log_info "Use Instruments for detailed CPU profiling on macOS"
-        log_info "Run: xcrun xctrace record --template 'CPU Profiler' --launch ./target/release/deps/rangebar_bench-*"
+        local bench_executable
+        bench_executable=$(find ./target/release/deps -name "rangebar_bench-*" -type f -executable | head -1)
+        if [[ -n "$bench_executable" ]]; then
+            log_info "Run: xcrun xctrace record --template 'CPU Profiler' --launch '$bench_executable'"
+        else
+            log_error "Benchmark executable not found. Build with 'cargo build --release --bench rangebar_bench'"
+        fi
     fi
 }
 
@@ -152,7 +171,7 @@ memory_profiling() {
             ms_print "$profile_dir/massif.out" > "$profile_dir/memory_report.txt"
             log_success "Memory profile saved to: $profile_dir/"
         else
-            log_warn "valgrind not found. Install with: sudo apt-get install valgrind"
+            log_warn "valgrind not found. Install with: apt-get install valgrind (requires admin privileges)"
         fi
     elif [[ "$OSTYPE" == "darwin"* ]]; then
         log_info "Use Instruments for memory profiling on macOS"
@@ -183,11 +202,18 @@ io_profiling() {
         if command -v dtruss &> /dev/null; then
             log_info "Running dtruss I/O analysis..."
             
-            # Run dtruss (requires sudo)
-            sudo dtruss -c ./target/release/deps/rangebar_bench-* --bench "rangebar_processing/10000" \
-                2> "$profile_dir/io_summary.txt"
-            
-            log_success "I/O profile saved to: $profile_dir/"
+            # Run dtruss - validate executable (admin privileges required)
+            local bench_executable
+            bench_executable=$(find ./target/release/deps -name "rangebar_bench-*" -type f -executable | head -1)
+
+            if [[ -z "$bench_executable" ]]; then
+                log_error "Benchmark executable not found. Run 'cargo build --release --bench rangebar_bench' first"
+                return 1
+            fi
+
+            log_warn "dtruss requires admin privileges for system call tracing"
+            log_info "dtruss profiling disabled for security - use Instruments instead on macOS"
+            log_info "Alternative: xcrun xctrace record --template 'System Trace' --launch '$bench_executable'"
         else
             log_warn "dtruss not available"
         fi

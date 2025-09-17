@@ -384,11 +384,17 @@ fn save_results(
 )]
 struct AnalysisArgs {
     /// Run the parallel analysis (default behavior)
-    #[arg(long, help = "Execute parallel range bar analysis on all Tier-1 symbols")]
+    #[arg(
+        long,
+        help = "Execute parallel range bar analysis on all Tier-1 symbols"
+    )]
     run: bool,
 
     /// Show detailed configuration information
-    #[arg(long, help = "Display current analysis configuration without executing")]
+    #[arg(
+        long,
+        help = "Display current analysis configuration without executing"
+    )]
     config: bool,
 
     /// List available Tier-1 symbols
@@ -396,7 +402,10 @@ struct AnalysisArgs {
     list_symbols: bool,
 
     /// Show system resource information
-    #[arg(long, help = "Display available CPU cores and memory for parallel processing")]
+    #[arg(
+        long,
+        help = "Display available CPU cores and memory for parallel processing"
+    )]
     system_info: bool,
 }
 
@@ -552,9 +561,16 @@ fn show_configuration() -> Result<(), Box<dyn std::error::Error>> {
 
     // Load the same configuration that would be used for analysis
     if let Ok((config, _)) = load_configuration() {
-        println!("📅 Analysis Period: {} to {}", config.start_date, config.end_date);
+        println!(
+            "📅 Analysis Period: {} to {}",
+            config.start_date, config.end_date
+        );
         println!("📊 Period Length: {} days", config.period_days);
-        println!("🎯 Range Bar Threshold: {}% ({})", config.threshold * 100.0, config.threshold_pct);
+        println!(
+            "🎯 Range Bar Threshold: {}% ({})",
+            config.threshold * 100.0,
+            config.threshold_pct
+        );
         println!("💾 Data Source: {}", config.data_source);
         println!("🔬 Analysis Type: {}", config.analysis_type);
     } else {
@@ -600,7 +616,10 @@ fn show_system_info() {
     println!("{}", "=".repeat(40));
 
     println!("🧵 CPU Cores:");
-    println!("   Available for parallel processing: {}", rayon::current_num_threads());
+    println!(
+        "   Available for parallel processing: {}",
+        rayon::current_num_threads()
+    );
     // Logical core count requires additional dependency
     // Physical core count requires additional dependency
 
@@ -612,7 +631,10 @@ fn show_system_info() {
 
     println!("\n🎯 Optimization:");
     println!("   • Pure Rust implementation for maximum performance");
-    println!("   • Parallel execution across all {} cores", rayon::current_num_threads());
+    println!(
+        "   • Parallel execution across all {} cores",
+        rayon::current_num_threads()
+    );
     println!("   • Memory-efficient streaming processing");
     println!("   • Non-blocking I/O for optimal throughput");
 }

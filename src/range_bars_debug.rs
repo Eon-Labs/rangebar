@@ -69,20 +69,36 @@ fn test_fixed_algorithm_behavior() {
         println!("   ✅ FIXED: No bars created (no threshold breach)");
         println!("   ✅ Algorithm integrity preserved");
     } else {
-        println!("   ❌ UNEXPECTED: {} bars created without breach", bars.len());
+        println!(
+            "   ❌ UNEXPECTED: {} bars created without breach",
+            bars.len()
+        );
         for (i, bar) in bars.iter().enumerate() {
-            println!("   Bar {}: O={} H={} L={} C={}", i+1, bar.open, bar.high, bar.low, bar.close);
+            println!(
+                "   Bar {}: O={} H={} L={} C={}",
+                i + 1,
+                bar.open,
+                bar.high,
+                bar.low,
+                bar.close
+            );
         }
     }
 
     // Test with analysis mode (includes incomplete bars)
     let bars_with_incomplete = processor.process_trades_with_incomplete(&trades).unwrap();
-    println!("   Analysis mode result: {} bars", bars_with_incomplete.len());
+    println!(
+        "   Analysis mode result: {} bars",
+        bars_with_incomplete.len()
+    );
 
     if bars_with_incomplete.len() == 1 {
         let bar = &bars_with_incomplete[0];
         println!("   ✅ Analysis mode includes incomplete bar for study");
-        println!("   Bar: O={} H={} L={} C={}", bar.open, bar.high, bar.low, bar.close);
+        println!(
+            "   Bar: O={} H={} L={} C={}",
+            bar.open, bar.high, bar.low, bar.close
+        );
     }
 }
 
@@ -117,11 +133,25 @@ fn test_analysis_mode_compatibility() {
     let strict_bars = processor.process_trades(&trades).unwrap();
     let analysis_bars = processor.process_trades_with_incomplete(&trades).unwrap();
 
-    println!("   Strict mode: {} bars (algorithm compliant)", strict_bars.len());
-    println!("   Analysis mode: {} bars (includes incomplete)", analysis_bars.len());
+    println!(
+        "   Strict mode: {} bars (algorithm compliant)",
+        strict_bars.len()
+    );
+    println!(
+        "   Analysis mode: {} bars (includes incomplete)",
+        analysis_bars.len()
+    );
 
-    assert_eq!(strict_bars.len(), 0, "Strict mode should not include incomplete bars");
-    assert_eq!(analysis_bars.len(), 1, "Analysis mode should include incomplete bar");
+    assert_eq!(
+        strict_bars.len(),
+        0,
+        "Strict mode should not include incomplete bars"
+    );
+    assert_eq!(
+        analysis_bars.len(),
+        1,
+        "Analysis mode should include incomplete bar"
+    );
 
     println!("   ✅ Both modes work as expected");
 }
@@ -198,7 +228,10 @@ fn test_with_audit_data(threshold_bps: u32) {
     let (upper_threshold, lower_threshold) = open_price.compute_range_thresholds(threshold_bps);
     let threshold_pct = threshold_bps as f64 / 10000.0;
 
-    println!("   Threshold: {} bps ({:.3}%)", threshold_bps, threshold_pct);
+    println!(
+        "   Threshold: {} bps ({:.3}%)",
+        threshold_bps, threshold_pct
+    );
     println!("   Upper threshold: {}", upper_threshold);
     println!("   Lower threshold: {}", lower_threshold);
 
@@ -211,10 +244,14 @@ fn test_with_audit_data(threshold_bps: u32) {
     let low_breaches_upper = low >= upper_threshold;
     let low_breaches_lower = low <= lower_threshold;
 
-    println!("   High (111692.3): breaches upper={}, breaches lower={}",
-             high_breaches_upper, high_breaches_lower);
-    println!("   Low (111201.6): breaches upper={}, breaches lower={}",
-             low_breaches_upper, low_breaches_lower);
+    println!(
+        "   High (111692.3): breaches upper={}, breaches lower={}",
+        high_breaches_upper, high_breaches_lower
+    );
+    println!(
+        "   Low (111201.6): breaches upper={}, breaches lower={}",
+        low_breaches_upper, low_breaches_lower
+    );
 
     // Process trades
     let bars = processor.process_trades(&trades).unwrap();
@@ -222,8 +259,14 @@ fn test_with_audit_data(threshold_bps: u32) {
 
     if !bars.is_empty() {
         for (i, bar) in bars.iter().enumerate() {
-            println!("   Bar {}: O={} H={} L={} C={}",
-                     i+1, bar.open, bar.high, bar.low, bar.close);
+            println!(
+                "   Bar {}: O={} H={} L={} C={}",
+                i + 1,
+                bar.open,
+                bar.high,
+                bar.low,
+                bar.close
+            );
 
             // Check if this bar violates the algorithm
             let bar_upper = bar.open.compute_range_thresholds(threshold_bps).0;
@@ -232,8 +275,14 @@ fn test_with_audit_data(threshold_bps: u32) {
             let high_violation = bar.high < bar_upper && bar.low > bar_lower;
             if high_violation {
                 println!("   ❌ ALGORITHM VIOLATION: Bar closed without breach!");
-                println!("      Expected upper: {}, actual high: {}", bar_upper, bar.high);
-                println!("      Expected lower: {}, actual low: {}", bar_lower, bar.low);
+                println!(
+                    "      Expected upper: {}, actual high: {}",
+                    bar_upper, bar.high
+                );
+                println!(
+                    "      Expected lower: {}, actual low: {}",
+                    bar_lower, bar.low
+                );
             }
         }
     }
@@ -256,7 +305,7 @@ fn test_end_of_data_scenario() {
         // Small price movements that don't breach 0.5% threshold
         AggTrade {
             agg_trade_id: 2,
-            price: FixedPoint::from_str("111500.0").unwrap(),  // +0.052%
+            price: FixedPoint::from_str("111500.0").unwrap(), // +0.052%
             volume: FixedPoint::from_str("1.0").unwrap(),
             first_trade_id: 2,
             last_trade_id: 2,
@@ -265,7 +314,7 @@ fn test_end_of_data_scenario() {
         },
         AggTrade {
             agg_trade_id: 3,
-            price: FixedPoint::from_str("111400.0").unwrap(),  // -0.037%
+            price: FixedPoint::from_str("111400.0").unwrap(), // -0.037%
             volume: FixedPoint::from_str("1.0").unwrap(),
             first_trade_id: 3,
             last_trade_id: 3,
@@ -274,7 +323,7 @@ fn test_end_of_data_scenario() {
         },
         AggTrade {
             agg_trade_id: 4,
-            price: FixedPoint::from_str("111499.9").unwrap(),  // +0.052%
+            price: FixedPoint::from_str("111499.9").unwrap(), // +0.052%
             volume: FixedPoint::from_str("1.0").unwrap(),
             first_trade_id: 4,
             last_trade_id: 4,
@@ -295,7 +344,10 @@ fn test_end_of_data_scenario() {
     if bars.len() == 1 {
         let bar = &bars[0];
         println!("   Result: 1 bar (end-of-data closure)");
-        println!("   Bar: O={} H={} L={} C={}", bar.open, bar.high, bar.low, bar.close);
+        println!(
+            "   Bar: O={} H={} L={} C={}",
+            bar.open, bar.high, bar.low, bar.close
+        );
 
         // This is the expected behavior - bar closes due to end of data
         let high_breach = bar.high >= upper_threshold;
@@ -321,12 +373,14 @@ pub fn test_small_thresholds() {
         let (upper, lower) = price.compute_range_thresholds(threshold_bps);
         let threshold_pct = threshold_bps as f64 / 10000.0; // Convert to percentage
 
-        println!("   {} bps ({:.3}%): upper={}, lower={}, delta={}",
-                 threshold_bps,
-                 threshold_pct,
-                 upper,
-                 lower,
-                 upper.0 - price.0);
+        println!(
+            "   {} bps ({:.3}%): upper={}, lower={}, delta={}",
+            threshold_bps,
+            threshold_pct,
+            upper,
+            lower,
+            upper.0 - price.0
+        );
     }
 }
 
@@ -349,23 +403,38 @@ pub fn analyze_audit_discrepancy() {
     let lower_diff = open_price.0 - expected_lower.0;
 
     println!("   Open price: {}", open_price);
-    println!("   Expected upper: {} (diff: {})", expected_upper, upper_diff);
-    println!("   Expected lower: {} (diff: {})", expected_lower, lower_diff);
+    println!(
+        "   Expected upper: {} (diff: {})",
+        expected_upper, upper_diff
+    );
+    println!(
+        "   Expected lower: {} (diff: {})",
+        expected_lower, lower_diff
+    );
 
     // Calculate implied threshold
     let implied_threshold_upper = (upper_diff as f64 / open_price.0 as f64) * 10000.0;
     let implied_threshold_lower = (lower_diff as f64 / open_price.0 as f64) * 10000.0;
 
-    println!("   Implied threshold from upper: {:.1} bps ({:.3}%)",
-             implied_threshold_upper, implied_threshold_upper / 100.0);
-    println!("   Implied threshold from lower: {:.1} bps ({:.3}%)",
-             implied_threshold_lower, implied_threshold_lower / 100.0);
+    println!(
+        "   Implied threshold from upper: {:.1} bps ({:.3}%)",
+        implied_threshold_upper,
+        implied_threshold_upper / 100.0
+    );
+    println!(
+        "   Implied threshold from lower: {:.1} bps ({:.3}%)",
+        implied_threshold_lower,
+        implied_threshold_lower / 100.0
+    );
 
     // Test with our calculated thresholds to see if we match
     let test_threshold = 5000; // 0.5%
     let (our_upper, our_lower) = open_price.compute_range_thresholds(test_threshold);
 
-    println!("   Our calculation (5000 bps): upper={}, lower={}", our_upper, our_lower);
+    println!(
+        "   Our calculation (5000 bps): upper={}, lower={}",
+        our_upper, our_lower
+    );
 
     let upper_match = (our_upper.0 - expected_upper.0).abs() < 1000; // Within 0.00001
     let lower_match = (our_lower.0 - expected_lower.0).abs() < 1000;
@@ -384,13 +453,13 @@ pub fn test_small_threshold_adversarial() {
     // Test both 0.25% (2500 basis points) and 0.3% (3000 basis points)
     // Note: This system uses threshold_bps / 1,000,000 = percentage
     // So 2500 = 0.25%, 3000 = 0.3% (not standard basis point definition)
-    let test_thresholds = [
-        (2500, "0.25%"),
-        (3000, "0.3%"),
-    ];
+    let test_thresholds = [(2500, "0.25%"), (3000, "0.3%")];
 
     for (threshold_bps, threshold_desc) in test_thresholds {
-        println!("\n🧪 Testing {} threshold ({} basis points)...", threshold_desc, threshold_bps);
+        println!(
+            "\n🧪 Testing {} threshold ({} basis points)...",
+            threshold_desc, threshold_bps
+        );
         test_specific_small_threshold(threshold_bps, threshold_desc);
     }
 
@@ -435,32 +504,59 @@ fn test_specific_small_threshold(threshold_bps: u32, threshold_desc: &str) {
 
     // Test strict algorithm compliance
     let bars_strict = processor.process_trades(&trades_no_breach).unwrap();
-    println!("   Strict mode ({}): {} bars created", threshold_desc, bars_strict.len());
+    println!(
+        "   Strict mode ({}): {} bars created",
+        threshold_desc,
+        bars_strict.len()
+    );
 
     if bars_strict.is_empty() {
         println!("   ✅ CORRECT: No bars created without breach");
     } else {
-        println!("   ❌ VIOLATION: {} bars created without breach!", bars_strict.len());
+        println!(
+            "   ❌ VIOLATION: {} bars created without breach!",
+            bars_strict.len()
+        );
         for (i, bar) in bars_strict.iter().enumerate() {
-            println!("      Bar {}: O={} H={} L={} C={}", i+1, bar.open, bar.high, bar.low, bar.close);
+            println!(
+                "      Bar {}: O={} H={} L={} C={}",
+                i + 1,
+                bar.open,
+                bar.high,
+                bar.low,
+                bar.close
+            );
         }
     }
 
     // Test analysis mode
-    let bars_analysis = processor.process_trades_with_incomplete(&trades_no_breach).unwrap();
-    println!("   Analysis mode ({}): {} bars created", threshold_desc, bars_analysis.len());
+    let bars_analysis = processor
+        .process_trades_with_incomplete(&trades_no_breach)
+        .unwrap();
+    println!(
+        "   Analysis mode ({}): {} bars created",
+        threshold_desc,
+        bars_analysis.len()
+    );
 
     if bars_analysis.len() == 1 {
         println!("   ✅ CORRECT: Analysis mode includes incomplete bar");
     } else {
-        println!("   ❌ UNEXPECTED: Analysis mode created {} bars", bars_analysis.len());
+        println!(
+            "   ❌ UNEXPECTED: Analysis mode created {} bars",
+            bars_analysis.len()
+        );
     }
 
     // Now test with trades that SHOULD breach the threshold
     let threshold_fraction = threshold_bps as f64 / 10000.0;
     let breach_price = 100000.0 * (1.0 + threshold_fraction + 0.01); // Slightly above threshold
 
-    println!("   Testing with breach price: {:.2} (threshold: {:.3}%)", breach_price, threshold_fraction * 100.0);
+    println!(
+        "   Testing with breach price: {:.2} (threshold: {:.3}%)",
+        breach_price,
+        threshold_fraction * 100.0
+    );
 
     let trades_with_breach = vec![
         AggTrade {
@@ -489,9 +585,15 @@ fn test_specific_small_threshold(threshold_bps: u32, threshold_desc: &str) {
     if bars_with_breach.len() == 1 {
         println!("   ✅ CORRECT: Breach creates exactly 1 bar");
         let bar = &bars_with_breach[0];
-        println!("      Bar: O={} H={} L={} C={}", bar.open, bar.high, bar.low, bar.close);
+        println!(
+            "      Bar: O={} H={} L={} C={}",
+            bar.open, bar.high, bar.low, bar.close
+        );
     } else {
-        println!("   ❌ UNEXPECTED: Breach created {} bars", bars_with_breach.len());
+        println!(
+            "   ❌ UNEXPECTED: Breach created {} bars",
+            bars_with_breach.len()
+        );
     }
 }
 
@@ -535,12 +637,18 @@ fn test_extreme_scenarios_small_thresholds() {
     ];
 
     let bars_tiny = processor.process_trades(&tiny_movements).unwrap();
-    println!("   0.1% threshold with tiny movements: {} bars", bars_tiny.len());
+    println!(
+        "   0.1% threshold with tiny movements: {} bars",
+        bars_tiny.len()
+    );
 
     if bars_tiny.is_empty() {
         println!("   ✅ EXCELLENT: Tiny movements within threshold don't create bars");
     } else {
-        println!("   ❌ ISSUE: Tiny movements created {} bars", bars_tiny.len());
+        println!(
+            "   ❌ ISSUE: Tiny movements created {} bars",
+            bars_tiny.len()
+        );
     }
 
     // Test precision boundaries
@@ -557,17 +665,23 @@ fn test_precision_boundaries() {
         let (upper, lower) = price.compute_range_thresholds(threshold_bps);
         let threshold_pct = threshold_bps as f64 / 10000.0;
 
-        println!("   {} bps ({:.3}%): range [{}, {}]",
-                 threshold_bps, threshold_pct, lower, upper);
+        println!(
+            "   {} bps ({:.3}%): range [{}, {}]",
+            threshold_bps, threshold_pct, lower, upper
+        );
 
         // Calculate the actual delta in fixed-point
         let delta = upper.0 - price.0;
         let delta_f64 = delta as f64 / 100_000_000.0; // Convert to actual price difference
 
-        println!("      Price delta: {:.8} (fixed-point: {})", delta_f64, delta);
+        println!(
+            "      Price delta: {:.8} (fixed-point: {})",
+            delta_f64, delta
+        );
 
         // Verify precision is sufficient
-        if delta < 1000 { // Less than 0.00001 precision
+        if delta < 1000 {
+            // Less than 0.00001 precision
             println!("      ⚠️ WARNING: Very small delta may cause precision issues");
         } else {
             println!("      ✅ GOOD: Sufficient precision for threshold");
@@ -596,8 +710,14 @@ pub fn debug_threshold_calculation_issue() {
     let upper_breach = test_price >= upper_threshold;
     let lower_breach = test_price <= lower_threshold;
 
-    println!("   Does {} >= {}? {}", test_price, upper_threshold, upper_breach);
-    println!("   Does {} <= {}? {}", test_price, lower_threshold, lower_breach);
+    println!(
+        "   Does {} >= {}? {}",
+        test_price, upper_threshold, upper_breach
+    );
+    println!(
+        "   Does {} <= {}? {}",
+        test_price, lower_threshold, lower_breach
+    );
 
     let is_breach = upper_breach || lower_breach;
     println!("   Overall breach: {}", is_breach);
@@ -609,11 +729,16 @@ pub fn debug_threshold_calculation_issue() {
     // Check fixed-point calculation details
     let basis_points_scale = 1_000_000;
     let delta = (open_price.0 as i128 * threshold_bps as i128) / basis_points_scale as i128;
-    println!("   Delta calculation: ({} * {}) / {} = {}",
-             open_price.0, threshold_bps, basis_points_scale, delta);
+    println!(
+        "   Delta calculation: ({} * {}) / {} = {}",
+        open_price.0, threshold_bps, basis_points_scale, delta
+    );
 
     let manual_upper = open_price.0 + delta as i64;
-    println!("   Manual upper fixed-point: {} + {} = {}", open_price.0, delta, manual_upper);
+    println!(
+        "   Manual upper fixed-point: {} + {} = {}",
+        open_price.0, delta, manual_upper
+    );
     println!("   Library upper fixed-point: {}", upper_threshold.0);
 
     if manual_upper != upper_threshold.0 {
@@ -640,8 +765,10 @@ pub fn debug_threshold_calculation_issue() {
     let bar = RangeBar::new(&dummy_trade);
     let breach_result = bar.is_breach(test_price, upper_threshold, lower_threshold);
 
-    println!("   RangeBar::is_breach({}, {}, {}) = {}",
-             test_price, upper_threshold, lower_threshold, breach_result);
+    println!(
+        "   RangeBar::is_breach({}, {}, {}) = {}",
+        test_price, upper_threshold, lower_threshold, breach_result
+    );
 
     if breach_result && !is_breach {
         println!("   ❌ INCONSISTENCY: RangeBar::is_breach differs from manual calculation!");
@@ -688,11 +815,15 @@ mod tests {
         let expected_delta = 5572075; // In fixed point (55.7207575 * 1e8)
         let actual_delta = upper.0 - price.0;
 
-        println!("Expected delta: {}, Actual delta: {}", expected_delta, actual_delta);
+        println!(
+            "Expected delta: {}, Actual delta: {}",
+            expected_delta, actual_delta
+        );
 
         // Check for precision loss
         let precision_loss = expected_delta - actual_delta;
-        if precision_loss.abs() > 1000 { // More than 0.00001 precision loss
+        if precision_loss.abs() > 1000 {
+            // More than 0.00001 precision loss
             println!("❌ Significant precision loss detected: {}", precision_loss);
         }
     }
