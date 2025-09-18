@@ -473,7 +473,7 @@ mod tests {
 
         // With a 0.1% threshold and 0.3% price movement, we should get at least 1 bar
         assert!(
-            bars.len() >= 1,
+            !bars.is_empty(),
             "Expected at least 1 range bar with 0.3% price movement and 0.1% threshold"
         );
     }
@@ -531,7 +531,7 @@ mod tests {
 
         // Should match the basic processor results (1 bar)
         assert!(
-            bars.len() >= 1,
+            !bars.is_empty(),
             "ExportRangeBarProcessor should generate same results as basic processor"
         );
     }

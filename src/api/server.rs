@@ -101,12 +101,10 @@ pub fn create_app() -> Router {
         .layer(CorsLayer::permissive());
 
     // Combine routes with Swagger UI
-    let app = Router::new().nest("/api/v1", api_routes).layer(middleware);
-
     // TODO: Add SwaggerUI integration - currently disabled due to type compatibility issues
     // SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi())
 
-    app
+    Router::new().nest("/api/v1", api_routes).layer(middleware)
 }
 
 /// Start the HTTP server

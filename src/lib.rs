@@ -179,8 +179,8 @@ pub mod statistics_v2;
 // Production-ready streaming architecture v2 (bounded memory, backpressure, circuit breaker)
 pub mod streaming_v2;
 
-// #[cfg(feature = "api")]
-// pub mod api;
+#[cfg(feature = "api")]
+pub mod api;
 
 // TODO: Python bindings module (when python-bindings feature is enabled)
 // #[cfg(feature = "python-bindings")]
@@ -201,8 +201,8 @@ pub use statistics::{
 
 #[cfg(feature = "streaming-stats")]
 pub use statistics_v2::{
-    BarStats, OhlcStatistics, PriceStatistics, RollingStats, StatisticsSnapshot,
-    StreamingConfig, StreamingStatsEngine, TradeStats, VolumeStatistics,
+    BarStats, OhlcStatistics, PriceStatistics, RollingStats, StatisticsSnapshot, StreamingConfig,
+    StreamingStatsEngine, TradeStats, VolumeStatistics,
 };
 
 // #[cfg(feature = "streaming-stats")]

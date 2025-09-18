@@ -13,6 +13,7 @@ use crate::types::{AggTrade, RangeBar};
 /// Core streaming statistics engine optimized for range bar processing
 pub struct StreamingStatsEngine {
     /// Configuration for statistical computation
+    #[allow(dead_code)]
     config: StreamingConfig,
 
     /// Trade-level streaming statistics
@@ -215,9 +216,7 @@ impl TradeStats {
 
     #[cfg(not(feature = "streaming-stats"))]
     fn new(_config: &StreamingConfig) -> Self {
-        Self {
-            count: 0,
-        }
+        Self { count: 0 }
     }
 
     fn update(&mut self, trade: &AggTrade) {
@@ -249,18 +248,23 @@ impl TradeStats {
                     ("P90", 0.9),
                     ("P95", 0.95),
                     ("P99", 0.99),
-                ].iter()
-                .map(|(name, quantile)| {
-                    (name.to_string(), tdigest.estimate_quantile(*quantile))
-                })
+                ]
+                .iter()
+                .map(|(name, quantile)| (name.to_string(), tdigest.estimate_quantile(*quantile)))
                 .collect()
             } else {
                 HashMap::new()
             };
 
             let range = if !self.price_values.is_empty() {
-                let min = self.price_values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-                let max = self.price_values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+                let min = self
+                    .price_values
+                    .iter()
+                    .fold(f64::INFINITY, |a, &b| a.min(b));
+                let max = self
+                    .price_values
+                    .iter()
+                    .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
                 (min, max)
             } else {
                 (0.0, 0.0)
@@ -306,18 +310,23 @@ impl TradeStats {
                     ("P90", 0.9),
                     ("P95", 0.95),
                     ("P99", 0.99),
-                ].iter()
-                .map(|(name, quantile)| {
-                    (name.to_string(), tdigest.estimate_quantile(*quantile))
-                })
+                ]
+                .iter()
+                .map(|(name, quantile)| (name.to_string(), tdigest.estimate_quantile(*quantile)))
                 .collect()
             } else {
                 HashMap::new()
             };
 
             let range = if !self.volume_values.is_empty() {
-                let min = self.volume_values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-                let max = self.volume_values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+                let min = self
+                    .volume_values
+                    .iter()
+                    .fold(f64::INFINITY, |a, &b| a.min(b));
+                let max = self
+                    .volume_values
+                    .iter()
+                    .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
                 (min, max)
             } else {
                 (0.0, 0.0)
@@ -371,9 +380,7 @@ impl BarStats {
 
     #[cfg(not(feature = "streaming-stats"))]
     fn new(_config: &StreamingConfig) -> Self {
-        Self {
-            count: 0,
-        }
+        Self { count: 0 }
     }
 
     fn update(&mut self, bar: &RangeBar) {
@@ -416,7 +423,8 @@ impl BarStats {
                         ("P90", 0.9),
                         ("P95", 0.95),
                         ("P99", 0.99),
-                    ].iter()
+                    ]
+                    .iter()
                     .map(|(name, quantile)| {
                         (name.to_string(), tdigest.estimate_quantile(*quantile))
                     })

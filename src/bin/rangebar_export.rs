@@ -174,6 +174,7 @@ impl ExportRangeBarProcessor {
         result
     }
 
+    #[allow(dead_code)]
     fn process_trades_continuously(&mut self, trades: &[AggTrade]) {
         // OPTIMIZATION: Remove clone() in hot loop - process by reference
         for trade in trades {
@@ -182,12 +183,14 @@ impl ExportRangeBarProcessor {
         // DO NOT clear completed_bars - maintain state for continuous processing
     }
 
+    #[allow(dead_code)]
     fn get_all_completed_bars(&mut self) -> Vec<RangeBar> {
         // OPTIMIZATION: Use std::mem::take to avoid clone operation
         std::mem::take(&mut self.completed_bars)
     }
 
     // OPTIMIZATION: Process trade by reference to avoid cloning
+    #[allow(dead_code)]
     fn process_single_trade_no_clone(&mut self, trade: &AggTrade) {
         if self.current_bar.is_none() {
             // Start new bar - Copy fields directly instead of cloning
@@ -962,6 +965,7 @@ impl RangeBarExporter {
     // CONTINUOUS PROCESSING METHODS FOR DAY-BOUNDARY CONTINUITY
 
     #[cfg(feature = "statistics")]
+    #[allow(dead_code)]
     async fn load_single_day_trades(
         &self,
         symbol: &str,

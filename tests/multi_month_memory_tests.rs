@@ -14,7 +14,6 @@ use std::os::unix::process::ExitStatusExt;
 /// - Year boundary transitions (2024 → 2025)
 /// - Streaming vs batch memory usage comparison
 /// - Large-scale temporal integrity
-
 const MONTHS_TO_TEST: &[(&str, i64, usize)] = &[
     ("2024-10", 1727740800000, 2_500_000), // Oct 2024 - 2.5M trades
     ("2024-11", 1730419200000, 2_800_000), // Nov 2024 - 2.8M trades
@@ -409,6 +408,7 @@ enum ProcessingMode {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct MemoryMetrics {
     peak_rss_kb: u64,
     peak_vss_kb: u64,
@@ -465,7 +465,7 @@ fn get_macos_memory() -> CurrentMemory {
     use std::process::Command;
 
     let output = Command::new("ps")
-        .args(&["-o", "rss,vsz", "-p", &process::id().to_string()])
+        .args(["-o", "rss,vsz", "-p", &process::id().to_string()])
         .output()
         .unwrap_or_else(|_| std::process::Output {
             status: std::process::ExitStatus::from_raw(1),
@@ -477,7 +477,7 @@ fn get_macos_memory() -> CurrentMemory {
     let lines: Vec<&str> = output_str.lines().collect();
 
     if lines.len() >= 2 {
-        let parts: Vec<&str> = lines[1].trim().split_whitespace().collect();
+        let parts: Vec<&str> = lines[1].split_whitespace().collect();
         if parts.len() >= 2 {
             let rss_kb = parts[0].parse().unwrap_or(0);
             let vss_kb = parts[1].parse().unwrap_or(0);
@@ -638,13 +638,11 @@ fn calculate_variance(values: &[u64]) -> f64 {
     }
 
     let mean = values.iter().map(|&v| v as f64).sum::<f64>() / values.len() as f64;
-    let variance = values
+    values
         .iter()
         .map(|&v| (v as f64 - mean).powi(2))
         .sum::<f64>()
-        / values.len() as f64;
-
-    variance
+        / values.len() as f64
 }
 
 // Validation functions

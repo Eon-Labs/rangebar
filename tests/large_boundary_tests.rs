@@ -1,7 +1,6 @@
 use rangebar::fixed_point::FixedPoint;
 use rangebar::range_bars::ExportRangeBarProcessor;
 use rangebar::types::{AggTrade, RangeBar};
-use std::fs;
 use std::time::Instant;
 
 /// Large-scale boundary consistency tests with comprehensive datasets
@@ -259,7 +258,7 @@ fn create_massive_realistic_dataset(count: usize) -> Vec<AggTrade> {
         // Multi-layered price movement simulation
         let trend = (time_progress * 2.0 * std::f64::consts::PI).sin() * 500.0; // Long-term trend
         let volatility = ((i as f64 * 0.01).sin() * 50.0) + ((i as f64 * 0.001).cos() * 20.0); // Volatility
-        let noise = ((i as f64 * 0.1).sin() * 5.0); // Market noise
+        let noise = (i as f64 * 0.1).sin() * 5.0; // Market noise
 
         let price = base_price + trend + volatility + noise;
         let timestamp = base_time + (i as i64 * 100); // 100ms intervals
@@ -343,7 +342,7 @@ fn create_trending_day_data(start_time: i64, count: usize) -> Vec<AggTrade> {
     for i in 0..count {
         // Strong upward trend with some noise
         let trend = (i as f64 / count as f64) * 800.0; // +800 over the day
-        let noise = ((i as f64 * 0.01).sin() * 30.0);
+        let noise = (i as f64 * 0.01).sin() * 30.0;
         let price = base_price + trend + noise;
         let timestamp = start_time + (i as i64 * 600); // 600ms intervals
 
@@ -410,7 +409,7 @@ fn create_high_frequency_data(interval_ms: i64) -> Vec<AggTrade> {
 
     // Dense, high-frequency trading
     for i in 0..10000 {
-        let micro_movement = ((i as f64 * 0.1).sin() * 0.5); // Very small movements
+        let micro_movement = (i as f64 * 0.1).sin() * 0.5; // Very small movements
         let price = base_price + micro_movement;
         let timestamp = base_time + (i as i64 * interval_ms);
 
@@ -430,7 +429,7 @@ fn create_medium_frequency_data(interval_ms: i64) -> Vec<AggTrade> {
     let base_time = 1659312000000i64;
 
     for i in 0..5000 {
-        let movement = ((i as f64 * 0.05).sin() * 10.0);
+        let movement = (i as f64 * 0.05).sin() * 10.0;
         let price = base_price + movement;
         let timestamp = base_time + (i as i64 * interval_ms);
 
@@ -450,7 +449,7 @@ fn create_low_frequency_data(interval_ms: i64) -> Vec<AggTrade> {
     let base_time = 1659312000000i64;
 
     for i in 0..1000 {
-        let movement = ((i as f64 * 0.01).sin() * 50.0);
+        let movement = (i as f64 * 0.01).sin() * 50.0;
         let price = base_price + movement;
         let timestamp = base_time + (i as i64 * interval_ms);
 
@@ -472,7 +471,7 @@ fn create_mixed_frequency_data() -> Vec<AggTrade> {
 
     // Variable intervals: sometimes fast, sometimes slow
     for i in 0..3000 {
-        let movement = ((i as f64 * 0.02).sin() * 25.0);
+        let movement = (i as f64 * 0.02).sin() * 25.0;
         let price = base_price + movement;
 
         // Variable interval based on market conditions

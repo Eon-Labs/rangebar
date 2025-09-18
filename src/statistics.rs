@@ -1702,7 +1702,6 @@ impl StatisticalEngine {
     }
 
     /// Compute comprehensive metadata for range bar export
-    /// Compute metadata using streaming statistics (memory-efficient)
     // #[cfg(feature = "streaming-stats")]
     // pub fn compute_comprehensive_metadata_streaming(
     //     &mut self,
@@ -1752,7 +1751,6 @@ impl StatisticalEngine {
     //         extensions: HashMap::new(),
     //     })
     // }
-
     pub fn compute_comprehensive_metadata(
         &mut self,
         trades: &[AggTrade],
@@ -2214,7 +2212,7 @@ impl StatisticalEngine {
         #[cfg(feature = "streaming-stats")]
         {
             // TODO: Implement with statistics_v2::StreamingStatsEngine
-            return Ok(DistributionStats {
+            Ok(DistributionStats {
                 price_distributions: DistributionFits {
                     best_fit: "streaming_v2_required".to_string(),
                     ..Default::default()
@@ -2224,7 +2222,7 @@ impl StatisticalEngine {
                     ..Default::default()
                 },
                 ..Default::default()
-            });
+            })
         }
 
         #[cfg(not(feature = "streaming-stats"))]
@@ -3203,9 +3201,9 @@ mod tests {
 //         if !streaming_stats.has_data() {
 //             return Err("No streaming data provided".into());
 //         }
-// 
+//
 //         let summary = crate::streaming_stats::StreamingStatsSummary::from(streaming_stats);
-// 
+//
 //         Ok(MarketDataStats {
 //             total_trades: summary.trade_count,
 //             total_volume: summary.volume_total,
@@ -3273,7 +3271,7 @@ mod tests {
 //             microstructure: MicrostructureMetrics::default(),
 //         })
 //     }
-// 
+//
 //     /// Compute distribution stats from streaming data
 //     fn compute_distribution_stats_streaming(
 //         &self,
@@ -3281,7 +3279,7 @@ mod tests {
 //         _bars: &[RangeBar],
 //     ) -> Result<DistributionStats, Box<dyn std::error::Error + Send + Sync>> {
 //         let summary = crate::streaming_stats::StreamingStatsSummary::from(streaming_stats);
-// 
+//
 //         let price_distribution = EnhancedDistribution {
 //             moments: MomentStatistics {
 //                 mean: summary.price_mean,
@@ -3308,7 +3306,7 @@ mod tests {
 //                 iqr: summary.price_p75 - summary.price_p25,
 //             },
 //         };
-// 
+//
 //         Ok(DistributionStats {
 //             price_distributions: DistributionFits::default(),
 //             volume_distributions: DistributionFits::default(),
@@ -3316,7 +3314,7 @@ mod tests {
 //             returns_distributions: DistributionFits::default(),
 //         })
 //     }
-// 
+//
 //     /// Compute financial metrics from streaming data using community-proven algorithms
 //     fn compute_financial_metrics_streaming(
 //         &self,
@@ -3326,7 +3324,7 @@ mod tests {
 //         // Use community-proven defaults until full integration with streaming stats
 //         Ok(FinancialMetrics::default())
 //     }
-// 
+//
 //     /// Compute validation stats from streaming data using community-proven algorithms
 //     fn compute_validation_stats_streaming(
 //         &self,
@@ -3336,7 +3334,7 @@ mod tests {
 //         // Use community-proven defaults until full integration with streaming stats
 //         Ok(ValidationStats::default())
 //     }
-// 
+//
 //     /// Compute performance metrics from streaming data using community-proven algorithms
 //     fn compute_performance_metrics_streaming(
 //         &self,
@@ -3345,7 +3343,7 @@ mod tests {
 //         processing_duration: std::time::Duration,
 //     ) -> Result<PerformanceMetrics, Box<dyn std::error::Error + Send + Sync>> {
 //         let processing_secs = processing_duration.as_secs_f64();
-// 
+//
 //         // Use proven ta-statistics crate for throughput calculations
 //         Ok(PerformanceMetrics {
 //             throughput: ThroughputMetrics {
@@ -3366,7 +3364,7 @@ mod tests {
 //             scalability: ScalabilityMetrics::default(),
 //         })
 //     }
-// 
+//
 //     /// Compute quality metrics from streaming data using community-proven algorithms
 //     fn compute_quality_metrics_streaming(
 //         &self,
