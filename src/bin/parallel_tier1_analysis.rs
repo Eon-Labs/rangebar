@@ -204,26 +204,23 @@ fn parse_output_statistics(stdout: &str) -> (Option<u64>, Option<u64>) {
 
     for line in stdout.lines() {
         // Extract total trades
-        if line.contains("trades loaded") {
-            if let Some(trades_str) = line.split("trades loaded").next() {
-                if let Ok(trades) = trades_str
-                    .chars()
-                    .filter(|c| c.is_ascii_digit())
-                    .collect::<String>()
-                    .parse::<u64>()
-                {
-                    total_trades = Some(trades);
-                }
-            }
+        if line.contains("trades loaded")
+            && let Some(trades_str) = line.split("trades loaded").next()
+            && let Ok(trades) = trades_str
+                .chars()
+                .filter(|c| c.is_ascii_digit())
+                .collect::<String>()
+                .parse::<u64>()
+        {
+            total_trades = Some(trades);
         }
 
         // Extract total bars
-        if line.contains("Total Bars:") {
-            if let Some(bars_str) = line.split("Total Bars:").nth(1) {
-                if let Ok(bars) = bars_str.trim().parse::<u64>() {
-                    total_bars = Some(bars);
-                }
-            }
+        if line.contains("Total Bars:")
+            && let Some(bars_str) = line.split("Total Bars:").nth(1)
+            && let Ok(bars) = bars_str.trim().parse::<u64>()
+        {
+            total_bars = Some(bars);
         }
     }
 
@@ -236,12 +233,11 @@ fn find_output_files(output_dir: &str) -> Vec<String> {
     if let Ok(entries) = fs::read_dir(output_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if let Some(ext) = path.extension() {
-                if ext == "csv" || ext == "json" {
-                    if let Some(path_str) = path.to_str() {
-                        files.push(path_str.to_string());
-                    }
-                }
+            if let Some(ext) = path.extension()
+                && (ext == "csv" || ext == "json")
+                && let Some(path_str) = path.to_str()
+            {
+                files.push(path_str.to_string());
             }
         }
     }

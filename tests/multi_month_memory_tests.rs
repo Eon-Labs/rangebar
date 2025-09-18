@@ -503,10 +503,10 @@ fn get_linux_memory() -> CurrentMemory {
             if let Some(value) = line.split_whitespace().nth(1) {
                 rss_kb = value.parse().unwrap_or(0);
             }
-        } else if line.starts_with("VmSize:") {
-            if let Some(value) = line.split_whitespace().nth(1) {
-                vss_kb = value.parse().unwrap_or(0);
-            }
+        } else if line.starts_with("VmSize:")
+            && let Some(value) = line.split_whitespace().nth(1)
+        {
+            vss_kb = value.parse().unwrap_or(0);
         }
     }
 

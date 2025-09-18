@@ -377,12 +377,10 @@ fn get_memory_usage_kb() -> u64 {
         if let Ok(output) = std::process::Command::new("ps")
             .args(["-o", "rss=", "-p", &std::process::id().to_string()])
             .output()
+            && let Ok(rss_str) = String::from_utf8(output.stdout)
+            && let Ok(rss_kb) = rss_str.trim().parse::<u64>()
         {
-            if let Ok(rss_str) = String::from_utf8(output.stdout) {
-                if let Ok(rss_kb) = rss_str.trim().parse::<u64>() {
-                    return rss_kb;
-                }
-            }
+            return rss_kb;
         }
     }
 

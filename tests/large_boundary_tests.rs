@@ -275,7 +275,7 @@ fn create_massive_realistic_dataset(count: usize) -> Vec<AggTrade> {
 
 fn create_multi_day_boundary_dataset(days: usize) -> Vec<AggTrade> {
     let mut trades = Vec::new();
-    let base_price = 23000.0;
+    let _base_price = 23000.0;
     let base_time = 1659312000000i64; // Aug 1, 2022
     let day_ms = 24 * 60 * 60 * 1000; // Milliseconds per day
 
@@ -525,7 +525,7 @@ fn create_precision_limit_data() -> Vec<AggTrade> {
     let base_time = 1659312000000i64;
 
     // Test precision limits of FixedPoint (8 decimal places)
-    let precision_prices = vec![
+    let precision_prices = [
         23000.12345678,    // Max precision
         23000.00000001,    // Minimum increment
         99999999.99999999, // Large number with precision
@@ -590,7 +590,7 @@ fn create_floating_point_stress_data() -> Vec<AggTrade> {
     let base_time = 1659312000000i64;
 
     // Test floating point edge cases that could cause precision issues
-    let stress_prices = vec![
+    let stress_prices = [
         23000.1 + 0.1,        // Addition that might cause precision loss
         23000.0 / 3.0,        // Division creating repeating decimals
         23000.0 * 1.1,        // Multiplication
@@ -685,7 +685,7 @@ fn validate_temporal_integrity(bars: &[RangeBar], test_name: &str) {
     }
 }
 
-fn analyze_boundary_behavior(batch_bars: &[RangeBar], streaming_bars: &[RangeBar], days: usize) {
+fn analyze_boundary_behavior(batch_bars: &[RangeBar], streaming_bars: &[RangeBar], _days: usize) {
     println!("  🔍 Boundary analysis:");
 
     // Calculate average bar duration

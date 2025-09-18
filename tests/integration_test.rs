@@ -147,7 +147,7 @@ fn test_cross_mode_algorithm_consistency() {
     // Verify deterministic bar count (should not vary by compilation mode)
     // Note: Actual count depends on range bar processor implementation
     assert!(
-        range_bars.len() >= 1,
+        !range_bars.is_empty(),
         "Expected at least 1 bar from deterministic sequence, got {}",
         range_bars.len()
     );
@@ -184,7 +184,7 @@ fn test_statistics_mode_consistency() {
     // Statistics mode should produce identical bar count and OHLCV data
     // The only difference should be additional metadata generation
     assert!(
-        range_bars.len() >= 1,
+        !range_bars.is_empty(),
         "Statistics mode bar count mismatch: expected >= 1, got {}",
         range_bars.len()
     );

@@ -1,7 +1,11 @@
+#[cfg(feature = "streaming-stats")]
 use rangebar::fixed_point::FixedPoint;
+#[cfg(feature = "streaming-stats")]
 use rangebar::statistics_v2::StreamingStatsEngine;
+#[cfg(feature = "streaming-stats")]
 use rangebar::types::{AggTrade, RangeBar};
 
+#[cfg(feature = "streaming-stats")]
 fn main() {
     println!("🧪 Testing Statistics V2 Module - Sensibility Check");
 
@@ -258,4 +262,9 @@ fn main() {
     }
 
     println!("\n🎯 Statistics V2 Module Validation Complete!");
+}
+
+#[cfg(not(feature = "streaming-stats"))]
+fn main() {
+    println!("⚠️  Statistics V2 validation skipped - streaming-stats feature not enabled");
 }
