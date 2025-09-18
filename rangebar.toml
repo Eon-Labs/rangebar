@@ -1,0 +1,115 @@
+# Rangebar Configuration File
+#
+# This configuration file provides centralized settings for the rangebar crate.
+# Configuration precedence (highest to lowest):
+# 1. Command-line arguments
+# 2. Environment variables (with RANGEBAR_ prefix)
+# 3. This configuration file
+# 4. Default values
+
+[app]
+# Application-wide settings
+name = "rangebar"
+version = "0.5.0"
+log_level = "info"  # error, warn, info, debug, trace
+# worker_threads = 8  # Uncomment to set specific thread count (auto-detect if not set)
+max_concurrent_operations = 10
+temp_dir = "/tmp"
+enable_metrics = false
+debug_mode = false
+
+[data]
+# Data source and processing configuration
+base_url = "https://data.binance.vision/data/"
+default_asset_class = "um"  # um (USD-M Futures), cm (Coin-M Futures), spot
+default_data_type = "aggTrades"  # aggTrades, klines, depth, trades
+download_dir = "./data/downloads"
+cache_dir = "./data/cache"
+max_concurrent_downloads = 5
+request_timeout_secs = 30
+retry_attempts = 3
+retry_delay_ms = 1000
+processing_chunk_size = 1000000
+enable_compression = true
+enable_integrity_checks = true
+
+[algorithm]
+# Range bar algorithm configuration
+default_threshold_bps = 25     # 0.25% (25 basis points)
+min_threshold_bps = 1        # 0.01%
+max_threshold_bps = 1000     # 10%
+validate_precision = true
+fixed_point_decimals = 8
+validate_non_lookahead = true
+validate_zero_duration = true
+max_zero_duration_percentage = 0.1  # 0.1% of total bars
+validate_temporal_integrity = true
+validate_ohlc_consistency = true
+validate_volume_consistency = true
+processing_batch_size = 100000
+enable_memory_optimization = true
+collect_performance_metrics = false
+
+[export]
+# Export and output configuration
+default_output_dir = "./output"
+default_format = "csv"  # csv, parquet, json, tsv, binary
+enable_compression = false
+include_metadata = true
+include_statistics = true
+show_progress = true
+max_bars_per_file = 0  # 0 = unlimited
+file_naming_pattern = "detailed"  # simple, detailed, timestamped, iso
+timestamp_format = "date"  # date, datetime, iso_date, iso_datetime, unix
+include_symbol_in_filename = true
+include_threshold_in_filename = true
+enable_parallel_export = true
+# export_worker_threads = 4  # Uncomment to set specific thread count (auto-detect if not set)
+streaming_buffer_size = 10000
+validate_export_data = true
+create_timestamped_dirs = false
+
+# Environment Variable Examples:
+# ============================
+# You can override any configuration value using environment variables with the RANGEBAR_ prefix:
+#
+# export RANGEBAR_ALGORITHM__DEFAULT_THRESHOLD_BPS=25     # 0.25%
+# export RANGEBAR_DATA__BASE_URL="https://custom.data.source/"
+# export RANGEBAR_EXPORT__DEFAULT_FORMAT="parquet"
+# export RANGEBAR_APP__DEBUG_MODE=true
+#
+# Command-line arguments will override both this file and environment variables.
+
+# Tier-1 Symbol Examples:
+# ======================
+# This configuration supports processing all 18 Tier-1 symbols:
+# BTC, ETH, SOL, ADA, AVAX, DOT, MATIC, LTC, UNI, LINK,
+# XRP, BCH, ETC, FIL, EOS, TRX, XMR, ATOM
+#
+# Example usage with tier1-symbol-discovery:
+# cargo run --bin tier1-symbol-discovery -- --format comprehensive
+#
+# Example usage with rangebar-analyze:
+# cargo run --bin rangebar-analyze
+#
+# Example usage with rangebar-export:
+# cargo run --bin rangebar-export -- BTCUSDT 2024-01-01 2024-01-02 0.0025 ./output um
+
+# Performance Notes:
+# ==================
+# For maximum performance with large datasets:
+# - Set algorithm.processing_batch_size = 1000000
+# - Set algorithm.enable_memory_optimization = true
+# - Set export.enable_parallel_export = true
+# - Set data.max_concurrent_downloads = 10 (if network allows)
+# - Set app.worker_threads to match your CPU cores
+
+# Validation Notes:
+# =================
+# All validations are enabled by default for data integrity:
+# - validate_precision: Ensures fixed-point arithmetic precision
+# - validate_non_lookahead: Verifies no future data leakage
+# - validate_zero_duration: Validates zero-duration bars (NOTABUG)
+# - validate_temporal_integrity: Ensures chronological ordering
+# - validate_ohlc_consistency: Verifies OHLC data consistency
+# - validate_volume_consistency: Validates volume calculations

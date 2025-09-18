@@ -84,8 +84,8 @@
 //! ```rust
 //! use rangebar::{RangeBarProcessor, AggTrade, FixedPoint};
 //!
-//! // Create processor with 0.8% threshold (8000 basis points)
-//! let mut processor = RangeBarProcessor::new(8000);
+//! // Create processor with 0.25% threshold
+//! let mut processor = RangeBarProcessor::new(2500);
 //!
 //! // Create sample trade data
 //! let trade = AggTrade {
@@ -118,7 +118,7 @@
 //!
 //! for pair in tier1_pairs {
 //!     println!("Processing range bars for {}...", pair);
-//!     let mut processor = RangeBarProcessor::new(8000); // 0.8% threshold
+//!     let mut processor = RangeBarProcessor::new(2500); // 0.25% threshold
 //!
 //!     // Load trades for this pair and process
 //!     // let trades = load_binance_aggtrades(&pair);
@@ -157,6 +157,7 @@
 //! - **Memory Efficiency**: Fixed-point arithmetic, optimized data structures
 //! - **CPU Efficiency**: 42% more efficient than Python implementations
 
+pub mod config;
 pub mod fixed_point;
 pub mod range_bars;
 pub mod range_bars_debug;
@@ -166,13 +167,29 @@ pub mod types;
 #[cfg(feature = "statistics")]
 pub mod statistics;
 
+// Clean streaming-optimized statistics (V2)
+#[cfg(feature = "streaming-stats")]
+pub mod statistics_v2;
+
+// #[cfg(feature = "streaming-stats")]
+// pub mod streaming_stats;
+
+// pub mod csv_streaming;
+
+// Production-ready streaming architecture v2 (bounded memory, backpressure, circuit breaker)
+pub mod streaming_v2;
+
+// #[cfg(feature = "api")]
+// pub mod api;
+
 // TODO: Python bindings module (when python-bindings feature is enabled)
 // #[cfg(feature = "python-bindings")]
 // pub mod python;
 
 // Re-export commonly used types for convenience
+pub use config::Settings;
 pub use fixed_point::FixedPoint;
-pub use range_bars::{ProcessingError, RangeBarProcessor};
+pub use range_bars::{ExportRangeBarProcessor, ProcessingError, RangeBarProcessor};
 pub use tier1::{TIER1_SYMBOLS, get_tier1_symbols, get_tier1_usdt_pairs, is_tier1_symbol};
 pub use types::{AggTrade, RangeBar};
 
@@ -181,6 +198,17 @@ pub use statistics::{
     AlgorithmConfig, DatasetInfo, FormatMetadata, PerformanceMetrics, QualityMetrics,
     RangeBarMetadata, StatisticalConfig, StatisticalEngine, Statistics,
 };
+
+#[cfg(feature = "streaming-stats")]
+pub use statistics_v2::{
+    BarStats, OhlcStatistics, PriceStatistics, RollingStats, StatisticsSnapshot,
+    StreamingConfig, StreamingStatsEngine, TradeStats, VolumeStatistics,
+};
+
+// #[cfg(feature = "streaming-stats")]
+// pub use streaming_stats::{StreamingStats, StreamingStatsSummary};
+
+// pub use csv_streaming::{CsvAggTrade, StreamingCsvProcessor};
 
 /// Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

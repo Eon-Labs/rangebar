@@ -5,6 +5,44 @@ All notable changes to RangeBar will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2025-09-18
+
+### Removed
+- Legacy streaming implementations: `streaming_processor.rs`, `streaming_processor_optimized.rs`, `streaming_abstraction.rs`
+- Legacy test infrastructure: `optimized_streaming_validation.rs`
+- Legacy dual-run validation test from `production_streaming_validation.rs`
+
+### Changed
+- Architecture consolidation: Batch (`ExportRangeBarProcessor`) + Production V2 (`ProductionStreamingProcessor`)
+- Cross-year performance test updated for batch vs V2 comparison only
+- Memory comparison demo simplified to batch processing demonstration
+- Build and test infrastructure updated for simplified architecture
+
+### Fixed
+- Production Streaming V2 final incomplete bar handling: automatic dispatch when trade channel closes
+- Algorithmic consistency verification: identical bar counts across batch and V2 implementations
+- Bounded memory guarantee maintained: <172MB peak usage for infinite streaming capability
+
+## [0.5.0] - 2025-09-17
+
+### Added
+- Introduced `config` module (`src/config/*`) with `Settings` aggregator for TOML, environment, and CLI merging.
+- Added CSV streaming ingestion (`src/csv_streaming.rs`) and new `StreamingRangeBarProcessor` for bounded Tokio pipelines.
+- Exposed streaming statistics support (`src/streaming_stats.rs`) alongside `StreamingStatsSummary` re-exports.
+- Published OpenAPI contract (`api/openapi.yaml`) and `rangebar_api` binary scaffold.
+- Added regression suites under `tests/` and `test_streaming/` plus reusable fixtures in `examples/`.
+
+### Changed
+- Reworked `RangeBarProcessor` internals to validate ordering, expose incomplete-bar option, and supply export-oriented processor variant.
+- Expanded statistical engine to emit metadata, performance, and validation summaries compatible with streaming collectors.
+- Updated CLI binaries (`tier1_symbol_discovery`, `rangebar_export`, `parallel_tier1_analysis`) to load shared configuration and API metadata.
+- Moved audit and benchmark documentation into `docs/` hierarchy; migrated premium dashboard assets to archival directory.
+- Updated README default threshold guidance and dependency usage to align with new processor defaults.
+
+### Removed
+- Deleted legacy root-level audit markdown files replaced by `docs/*` versions.
+- Removed obsolete generated dashboard artifacts from `output/premium_analysis/tradability_analysis/`.
+
 ## [0.4.0] - 2025-09-09
 
 ### 🔗 Format Alignment & Interoperability

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 /// Aggregate trade data from Binance UM Futures
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct AggTrade {
     /// Aggregate trade ID
     pub agg_trade_id: i64,
@@ -43,6 +44,7 @@ impl AggTrade {
 
 /// Range bar with OHLCV data and market microstructure enhancements
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct RangeBar {
     /// Opening timestamp (first trade)
     pub open_time: i64,

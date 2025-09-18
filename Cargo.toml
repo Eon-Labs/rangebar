@@ -1,6 +1,6 @@
 [package]
 name = "rangebar"
-version = "0.4.5"
+version = "0.5.1"
 authors = ["Terry Li <terry@eonlabs.com>"]
 categories = ["algorithms", "data-structures", "finance"]
 documentation = "https://docs.rs/rangebar"
@@ -19,19 +19,28 @@ Non-lookahead algorithm guarantees temporal integrity for financial backtesting.
 
 exclude = [
     "CLAUDE.md",                     # Project memory - never publish
+    "docs/",                         # Documentation reports (not for crate users)
     "*.py",
     "*.ipynb",
-    "test_data/*",
-    "data/*",
-    "output/*",
-    "range_bar_charts/*",
-    "statistical_analysis/*",
-    "visualization/*",
-    "web/*",
-    "adversarial_test_output/*",
-    "milestones/*",
-    ".venv/*",
-    "repos/*"
+    "test_data/",
+    "test_output/",
+    "test_regression/",
+    "test_single/",
+    "test_spot/",
+    "test_thresholds/",
+    "data/",
+    "output/",
+    "range_bar_charts/",
+    "statistical_analysis/",
+    "visualization/",
+    "web/",
+    "adversarial_test_output/",
+    "milestones/",
+    ".venv/",
+    "repos/",
+    ".pytest_cache/",
+    "benchmark_data/",
+    "binance_futures_*.txt"          # Generated symbol lists
 ]
 
 [badges]
@@ -54,6 +63,7 @@ name = "tier1-symbol-discovery"
 path = "src/bin/tier1_symbol_discovery.rs"
 
 
+
 [[bench]]
 name = "rangebar_bench"
 harness = false
@@ -67,13 +77,42 @@ csv = "1.3"
 # Core async dependencies
 bytes = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
-clap = { version = "4.0", features = ["derive"] }
+clap = { version = "4.0", features = ["derive", "env"] }
 comfy-table = "7.2"
 num_cpus = "1.16"
+futures = "0.3"
 futures-util = "0.3"
 reqwest = { version = "0.12", features = ["stream"] }
 tokio = { version = "1.0", features = ["full"] }
 zip = "2.2"
+config = "0.14"
+
+# Streaming CSV processing
+csv-async = { version = "1.3", features = ["tokio"] }
+tokio-stream = "0.1"
+
+# Memory-efficient streaming optimizations (2024-2025 community-proven)
+mempool = { version = "0.3", optional = true }  # 1ns/iter allocation reuse, thread-safe memory pool by BurntSushi
+bufferpool = { version = "0.1", optional = true }  # 4.3x faster pre-allocated buffer regions
+tikv-jemallocator = { version = "0.6", optional = true }  # 25% memory performance boost
+
+# Web framework and API dependencies (optional)
+axum = { version = "0.7", features = ["json", "multipart", "ws"], optional = true }
+tower = { version = "0.4", features = ["limit", "timeout"], optional = true }
+tower-http = { version = "0.5", features = ["cors", "trace", "compression-br"], optional = true }
+utoipa = { version = "4.2", features = ["axum_extras", "chrono", "uuid"], optional = true }
+utoipa-swagger-ui = { version = "4.0", features = ["axum"], optional = true }
+anyhow = { version = "1.0", optional = true }
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"], optional = true }
+validator = { version = "0.18", features = ["derive"], optional = true }
+uuid = { version = "1.6", features = ["v4", "serde"], optional = true }
+
+# State-of-the-art streaming statistics (2024-2025)
+ta-statistics = { version = "0.2", optional = true }  # Financial-specific with Welford's algorithm
+rolling-stats = { version = "0.1", optional = true }  # Numerically stable variance
+tdigests = { version = "1.0", optional = true }      # Streaming percentiles <2% error
+# streaming_algorithms = { version = "0.1", optional = true }  # SIMD-accelerated algorithms (disabled due to packed_simd compatibility)
 
 # Statistical analysis (optional)
 nalgebra = { version = "0.33", optional = true }
@@ -96,6 +135,7 @@ pyo3 = { version = "0.26", features = ["extension-module", "abi3-py38"], optiona
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
+toml = "0.8"
 
 [profile.release]
 lto = true              # Link-time optimization for better performance
@@ -107,18 +147,29 @@ panic = "abort"         # Smaller binary size
 overflow-checks = true  # Keep overflow checks in debug builds
 
 [features]
-default = ["statistics", "data-integrity"]  # Core features for most users
+default = ["statistics", "data-integrity", "streaming-v2"]  # Core features for most users
 simd = []                                # Optional SIMD optimizations
 
 # Feature groups for modular compilation
 statistics = ["dep:statrs", "dep:quantiles", "dep:polars", "dep:nalgebra"]
+streaming-stats = ["dep:ta-statistics", "dep:rolling-stats", "dep:tdigests"]  # State-of-the-art streaming statistics
+memory-optimized = ["dep:mempool", "dep:bufferpool", "dep:tikv-jemallocator"]  # Zero-allocation streaming (2024-2025)
+streaming-v2 = []  # Production-ready streaming architecture with bounded memory
+dual-run-validation = []  # Enable parallel processing for migration validation
 arrow-support = ["dep:arrow", "dep:parquet"]
 data-integrity = ["dep:sha2", "dep:crc32fast", "dep:md5"]
+
+# Web API and service capabilities
+api = ["dep:axum", "dep:tower", "dep:tower-http", "dep:utoipa", "dep:utoipa-swagger-ui",
+       "dep:anyhow", "dep:tracing", "dep:tracing-subscriber", "dep:validator", "dep:uuid"]
 
 # Python integration (2024 best practices)
 python = ["dep:pyo3", "statistics"]  # Python requires statistics for full functionality
 
 # Combined feature sets
 full-analytics = ["statistics", "data-integrity"]
+streaming-analytics = ["streaming-stats", "data-integrity"]  # Memory-efficient analytics
 production = ["full-analytics", "arrow-support"]
+streaming-production = ["streaming-analytics", "arrow-support"]  # Memory-efficient production
+api-service = ["api", "streaming-analytics"]  # Complete API service with streaming analytics
 python-bindings = ["dep:pyo3", "statistics"]  # Optional Python bindings for those who want them

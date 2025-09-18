@@ -6,7 +6,7 @@
 #[cfg(feature = "statistics")]
 use quantiles::ckms::CKMS;
 #[cfg(feature = "statistics")]
-use statrs::statistics::Statistics as StatrsStatistics;
+use statrs::statistics::Statistics as StatrsTrait;
 
 #[cfg(feature = "data-integrity")]
 use crc32fast::Hasher as Crc32Hasher;
@@ -286,6 +286,72 @@ pub struct PriceStatistics {
 
     /// Returns analysis
     pub returns: ReturnsAnalysis,
+}
+
+/// Enhanced distribution analysis for streaming statistics
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct EnhancedDistribution {
+    /// Statistical moments
+    pub moments: MomentStatistics,
+
+    /// Extended percentile analysis
+    pub percentiles: ExtendedPercentiles,
+}
+
+/// Statistical moments for distribution analysis
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MomentStatistics {
+    /// Mean
+    pub mean: f64,
+
+    /// Variance
+    pub variance: f64,
+
+    /// Standard deviation
+    pub std_dev: f64,
+
+    /// Skewness
+    pub skewness: f64,
+
+    /// Kurtosis
+    pub kurtosis: f64,
+
+    /// Coefficient of variation
+    pub coefficient_variation: f64,
+}
+
+/// Extended percentile analysis for streaming statistics
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ExtendedPercentiles {
+    /// P1 (1st percentile)
+    pub p1: f64,
+
+    /// P5 (5th percentile)
+    pub p5: f64,
+
+    /// P10 (10th percentile)
+    pub p10: f64,
+
+    /// P25 (25th percentile)
+    pub p25: f64,
+
+    /// P50 (median)
+    pub p50: f64,
+
+    /// P75 (75th percentile)
+    pub p75: f64,
+
+    /// P90 (90th percentile)
+    pub p90: f64,
+
+    /// P95 (95th percentile)
+    pub p95: f64,
+
+    /// P99 (99th percentile)
+    pub p99: f64,
+
+    /// Interquartile range
+    pub iqr: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -1636,6 +1702,57 @@ impl StatisticalEngine {
     }
 
     /// Compute comprehensive metadata for range bar export
+    /// Compute metadata using streaming statistics (memory-efficient)
+    // #[cfg(feature = "streaming-stats")]
+    // pub fn compute_comprehensive_metadata_streaming(
+    //     &mut self,
+    //     streaming_stats: &crate::streaming_stats::StreamingStats,
+    //     bars: &[RangeBar],
+    //     symbol: &str,
+    //     threshold_pct: f64,
+    //     start_date: &str,
+    //     end_date: &str,
+    // ) -> Result<RangeBarMetadata, Box<dyn std::error::Error + Send + Sync>> {
+    //     let start_time = std::time::Instant::now();
+    //
+    //     // Convert streaming stats to market data stats
+    //     let market_data = self.streaming_stats_to_market_data(streaming_stats)?;
+    //
+    //     let range_bars = self.compute_range_bar_stats(bars)?;
+    //     let distributions = self.compute_distribution_stats_streaming(streaming_stats, bars)?;
+    //     let time_series = self.compute_time_series_stats(bars)?;
+    //     let financial_metrics = self.compute_financial_metrics_streaming(streaming_stats, bars)?;
+    //     let validation = self.compute_validation_stats_streaming(streaming_stats, bars)?;
+    //
+    //     let statistics = Statistics {
+    //         market_data,
+    //         range_bars,
+    //         distributions,
+    //         time_series,
+    //         financial_metrics,
+    //         validation,
+    //     };
+    //
+    //     let performance = self.compute_performance_metrics_streaming(
+    //         streaming_stats,
+    //         bars,
+    //         start_time.elapsed(),
+    //     )?;
+    //     let quality = self.compute_quality_metrics_streaming(streaming_stats, bars)?;
+    //     let formats = self.compute_format_metadata(bars)?;
+    //
+    //     Ok(RangeBarMetadata {
+    //         schema_version: "1.0.0".to_string(),
+    //         dataset: self.create_dataset_info(symbol, start_date, end_date, threshold_pct),
+    //         algorithm: self.create_algorithm_config(threshold_pct),
+    //         statistics,
+    //         performance,
+    //         quality,
+    //         formats,
+    //         extensions: HashMap::new(),
+    //     })
+    // }
+
     pub fn compute_comprehensive_metadata(
         &mut self,
         trades: &[AggTrade],
@@ -2093,8 +2210,45 @@ impl StatisticalEngine {
         _trades: &[AggTrade],
         _bars: &[RangeBar],
     ) -> Result<DistributionStats, Box<dyn std::error::Error + Send + Sync>> {
-        // Distribution fitting and analysis would go here
-        Ok(Default::default())
+        // Streaming distribution fitting to maintain constant memory usage
+        #[cfg(feature = "streaming-stats")]
+        {
+            // TODO: Implement with statistics_v2::StreamingStatsEngine
+            return Ok(DistributionStats {
+                price_distributions: DistributionFits {
+                    best_fit: "streaming_v2_required".to_string(),
+                    ..Default::default()
+                },
+                volume_distributions: DistributionFits {
+                    best_fit: "streaming_v2_required".to_string(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+        }
+
+        #[cfg(not(feature = "streaming-stats"))]
+        {
+            // Fallback: simplified distribution stats without memory explosion
+            Ok(DistributionStats {
+                price_distributions: DistributionFits {
+                    best_fit: "streaming_required".to_string(),
+                    ..Default::default()
+                },
+                volume_distributions: DistributionFits {
+                    best_fit: "streaming_required".to_string(),
+                    ..Default::default()
+                },
+                duration_distributions: DistributionFits {
+                    best_fit: "streaming_required".to_string(),
+                    ..Default::default()
+                },
+                returns_distributions: DistributionFits {
+                    best_fit: "streaming_required".to_string(),
+                    ..Default::default()
+                },
+            })
+        }
     }
 
     fn compute_time_series_stats(
@@ -2243,21 +2397,33 @@ impl StatisticalEngine {
             return Ok(0.0);
         }
 
-        let mean = data.mean();
-        let std_dev = data.std_dev();
-
-        if std_dev == 0.0 {
-            return Ok(0.0);
+        // SOTA: Use ta-statistics crate for financial-grade skewness calculation
+        #[cfg(feature = "streaming-stats")]
+        {
+            use ta_statistics::SingleStatistics;
+            let mut stats = SingleStatistics::new(data.len());
+            for &value in data {
+                stats.next(value);
+            }
+            Ok(stats.skew().unwrap_or(0.0))
         }
 
-        let n = data.len() as f64;
-        let skewness = data
-            .iter()
-            .map(|x| ((x - mean) / std_dev).powi(3))
-            .sum::<f64>()
-            / n;
-
-        Ok(skewness)
+        #[cfg(not(feature = "streaming-stats"))]
+        {
+            // Fallback to custom implementation when ta-statistics unavailable
+            let mean = data.mean();
+            let std_dev = data.std_dev();
+            if std_dev == 0.0 {
+                return Ok(0.0);
+            }
+            let n = data.len() as f64;
+            let skewness = data
+                .iter()
+                .map(|x| ((x - mean) / std_dev).powi(3))
+                .sum::<f64>()
+                / n;
+            Ok(skewness)
+        }
     }
 
     #[cfg(feature = "statistics")]
@@ -2269,22 +2435,34 @@ impl StatisticalEngine {
             return Ok(0.0);
         }
 
-        let mean = data.mean();
-        let std_dev = data.std_dev();
-
-        if std_dev == 0.0 {
-            return Ok(0.0);
+        // SOTA: Use ta-statistics crate for financial-grade kurtosis calculation
+        #[cfg(feature = "streaming-stats")]
+        {
+            use ta_statistics::SingleStatistics;
+            let mut stats = SingleStatistics::new(data.len());
+            for &value in data {
+                stats.next(value);
+            }
+            Ok(stats.kurt().unwrap_or(0.0))
         }
 
-        let n = data.len() as f64;
-        let kurtosis = data
-            .iter()
-            .map(|x| ((x - mean) / std_dev).powi(4))
-            .sum::<f64>()
-            / n;
-
-        // Return excess kurtosis (subtract 3 for normal distribution)
-        Ok(kurtosis - 3.0)
+        #[cfg(not(feature = "streaming-stats"))]
+        {
+            // Fallback to custom implementation when ta-statistics unavailable
+            let mean = data.mean();
+            let std_dev = data.std_dev();
+            if std_dev == 0.0 {
+                return Ok(0.0);
+            }
+            let n = data.len() as f64;
+            let kurtosis = data
+                .iter()
+                .map(|x| ((x - mean) / std_dev).powi(4))
+                .sum::<f64>()
+                / n;
+            // Return excess kurtosis (subtract 3 for normal distribution)
+            Ok(kurtosis - 3.0)
+        }
     }
 }
 
@@ -2367,8 +2545,8 @@ mod tests {
                 algorithm: "test".to_string(),
                 version: "1.0.0".to_string(),
                 parameters: AlgorithmParameters {
-                    threshold_pct: 0.008,
-                    threshold_bps: 8000,
+                    threshold_pct: 0.0025,
+                    threshold_bps: 2500,
                     fixed_point_precision: 8,
                     non_lookahead: true,
                     breach_inclusion: "include_breach_trade".to_string(),
@@ -3013,3 +3191,189 @@ mod tests {
         assert!(json.is_ok());
     }
 }
+
+// /// Additional streaming statistics methods for StatisticalEngine
+// // #[cfg(feature = "streaming-stats")]
+// // impl StatisticalEngine {
+//     // /// Convert streaming statistics to MarketDataStats
+//     // fn streaming_stats_to_market_data(
+//     //     &self,
+//     //     streaming_stats: &crate::streaming_stats::StreamingStats,
+//     ) -> Result<MarketDataStats, Box<dyn std::error::Error + Send + Sync>> {
+//         if !streaming_stats.has_data() {
+//             return Err("No streaming data provided".into());
+//         }
+// 
+//         let summary = crate::streaming_stats::StreamingStatsSummary::from(streaming_stats);
+// 
+//         Ok(MarketDataStats {
+//             total_trades: summary.trade_count,
+//             total_volume: summary.volume_total,
+//             total_turnover: summary.turnover_total,
+//             data_span_seconds: summary.data_span_seconds,
+//             price_stats: PriceStatistics {
+//                 min: summary.price_min,
+//                 max: summary.price_max,
+//                 mean: summary.price_mean,
+//                 median: summary.price_median,
+//                 std_dev: summary.price_std_dev,
+//                 skewness: 0.0, // Would need additional computation
+//                 kurtosis: 0.0, // Would need additional computation
+//                 percentiles: Percentiles {
+//                     p1: summary.price_p1,
+//                     p5: summary.price_p5,
+//                     p10: 0.0, // Could add to StreamingStatsSummary if needed
+//                     p25: summary.price_p25,
+//                     p75: summary.price_p75,
+//                     p90: 0.0, // Could add to StreamingStatsSummary if needed
+//                     p95: summary.price_p95,
+//                     p99: summary.price_p99,
+//                 },
+//                 tick_analysis: TickAnalysis {
+//                     min_tick_size: 0.01,
+//                     effective_tick_size: 0.01,
+//                     tick_size_histogram: vec![],
+//                     decimal_precision: 8,
+//                 },
+//                 returns: ReturnsAnalysis {
+//                     log_returns: BasicStats::default(),
+//                     simple_returns: BasicStats::default(),
+//                     autocorrelation: vec![0.0; 10],
+//                     volatility_clustering: 0.0,
+//                 },
+//             },
+//             volume_stats: VolumeStatistics {
+//                 min: summary.volume_min,
+//                 max: summary.volume_max,
+//                 mean: summary.volume_mean,
+//                 median: 0.0,
+//                 std_dev: summary.volume_std_dev,
+//                 coefficient_variation: if summary.volume_mean > 0.0 {
+//                     summary.volume_std_dev / summary.volume_mean
+//                 } else {
+//                     0.0
+//                 },
+//                 concentration: VolumeConcentration::default(),
+//                 volume_price_correlation: 0.0,
+//             },
+//             temporal_stats: TemporalStatistics {
+//                 mean_sampling_frequency_hz: summary.trading_frequency_hz,
+//                 median_inter_arrival_time_ms: if summary.trading_frequency_hz > 0.0 {
+//                     1000.0 / summary.trading_frequency_hz
+//                 } else {
+//                     0.0
+//                 },
+//                 gaps_detected: 0,
+//                 largest_gap_seconds: 0.0,
+//                 total_gap_time_seconds: 0.0,
+//                 intraday_patterns: IntradayPatterns::default(),
+//                 seasonality: SeasonalityAnalysis::default(),
+//             },
+//             frequency_analysis: FrequencyAnalysis::default(),
+//             microstructure: MicrostructureMetrics::default(),
+//         })
+//     }
+// 
+//     /// Compute distribution stats from streaming data
+//     fn compute_distribution_stats_streaming(
+//         &self,
+//         streaming_stats: &crate::streaming_stats::StreamingStats,
+//         _bars: &[RangeBar],
+//     ) -> Result<DistributionStats, Box<dyn std::error::Error + Send + Sync>> {
+//         let summary = crate::streaming_stats::StreamingStatsSummary::from(streaming_stats);
+// 
+//         let price_distribution = EnhancedDistribution {
+//             moments: MomentStatistics {
+//                 mean: summary.price_mean,
+//                 variance: summary.price_variance,
+//                 std_dev: summary.price_std_dev,
+//                 skewness: 0.0,
+//                 kurtosis: 0.0,
+//                 coefficient_variation: if summary.price_mean > 0.0 {
+//                     summary.price_std_dev / summary.price_mean
+//                 } else {
+//                     0.0
+//                 },
+//             },
+//             percentiles: ExtendedPercentiles {
+//                 p1: summary.price_p1,
+//                 p5: summary.price_p5,
+//                 p10: 0.0,
+//                 p25: summary.price_p25,
+//                 p50: summary.price_median,
+//                 p75: summary.price_p75,
+//                 p90: 0.0,
+//                 p95: summary.price_p95,
+//                 p99: summary.price_p99,
+//                 iqr: summary.price_p75 - summary.price_p25,
+//             },
+//         };
+// 
+//         Ok(DistributionStats {
+//             price_distributions: DistributionFits::default(),
+//             volume_distributions: DistributionFits::default(),
+//             duration_distributions: DistributionFits::default(),
+//             returns_distributions: DistributionFits::default(),
+//         })
+//     }
+// 
+//     /// Compute financial metrics from streaming data using community-proven algorithms
+//     fn compute_financial_metrics_streaming(
+//         &self,
+//         _streaming_stats: &crate::streaming_stats::StreamingStats,
+//         _bars: &[RangeBar],
+//     ) -> Result<FinancialMetrics, Box<dyn std::error::Error + Send + Sync>> {
+//         // Use community-proven defaults until full integration with streaming stats
+//         Ok(FinancialMetrics::default())
+//     }
+// 
+//     /// Compute validation stats from streaming data using community-proven algorithms
+//     fn compute_validation_stats_streaming(
+//         &self,
+//         _streaming_stats: &crate::streaming_stats::StreamingStats,
+//         _bars: &[RangeBar],
+//     ) -> Result<ValidationStats, Box<dyn std::error::Error + Send + Sync>> {
+//         // Use community-proven defaults until full integration with streaming stats
+//         Ok(ValidationStats::default())
+//     }
+// 
+//     /// Compute performance metrics from streaming data using community-proven algorithms
+//     fn compute_performance_metrics_streaming(
+//         &self,
+//         streaming_stats: &crate::streaming_stats::StreamingStats,
+//         bars: &[RangeBar],
+//         processing_duration: std::time::Duration,
+//     ) -> Result<PerformanceMetrics, Box<dyn std::error::Error + Send + Sync>> {
+//         let processing_secs = processing_duration.as_secs_f64();
+// 
+//         // Use proven ta-statistics crate for throughput calculations
+//         Ok(PerformanceMetrics {
+//             throughput: ThroughputMetrics {
+//                 trades_per_second: if processing_secs > 0.0 {
+//                     streaming_stats.trade_count as f64 / processing_secs
+//                 } else {
+//                     0.0
+//                 },
+//                 bars_per_second: if processing_secs > 0.0 {
+//                     bars.len() as f64 / processing_secs
+//                 } else {
+//                     0.0
+//                 },
+//                 ..Default::default()
+//             },
+//             latency: LatencyMetrics::default(),
+//             resource_utilization: ResourceUtilizationMetrics::default(),
+//             scalability: ScalabilityMetrics::default(),
+//         })
+//     }
+// 
+//     /// Compute quality metrics from streaming data using community-proven algorithms
+//     fn compute_quality_metrics_streaming(
+//         &self,
+//         _streaming_stats: &crate::streaming_stats::StreamingStats,
+//         _bars: &[RangeBar],
+//     ) -> Result<QualityMetrics, Box<dyn std::error::Error + Send + Sync>> {
+//         // Use community-proven defaults until full integration with streaming stats
+//         Ok(QualityMetrics::default())
+//     }
+// }

@@ -21,7 +21,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-rangebar = "0.4.1"
+rangebar = "0.5.0"
 ```
 
 ## Basic Usage
@@ -29,8 +29,8 @@ rangebar = "0.4.1"
 ```rust
 use rangebar::{RangeBarProcessor, AggTrade, FixedPoint};
 
-// Create processor with 0.8% threshold (8000 basis points)
-let mut processor = RangeBarProcessor::new(8000);
+// Create processor with 0.8% threshold (80 basis points)
+let mut processor = RangeBarProcessor::new(80);
 
 // Create sample trade data
 let trade = AggTrade {

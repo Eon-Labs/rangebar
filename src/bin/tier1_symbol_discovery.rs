@@ -14,6 +14,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::Path;
 
+use rangebar::config::{CliConfigMerge, Settings};
+
 /// Output format for the symbol analysis
 #[derive(Debug, Clone, ValueEnum)]
 enum OutputFormat {
@@ -67,6 +69,19 @@ struct Args {
     /// Validate Tier-1 symbols with live data
     #[arg(short = 'v', long)]
     validate_tier1: bool,
+}
+
+impl CliConfigMerge for Args {
+    fn merge_into_config(&self, config: &mut Settings) {
+        // Currently no CLI args directly override configuration values
+        // This binary mainly uses its own CLI args for specific functionality
+        // In the future, could add args for API timeouts, retry counts, etc.
+
+        // Enable debug mode if validate_tier1 is set (more verbose output)
+        if self.validate_tier1 {
+            config.app.debug_mode = true;
+        }
+    }
 }
 
 /// Market contract details for a specific market
@@ -180,12 +195,19 @@ struct BinanceMultiMarketAnalyzer {
 }
 
 impl BinanceMultiMarketAnalyzer {
-    /// Create new analyzer with default Binance API endpoints
-    fn new() -> Self {
+    /// Create new analyzer from configuration settings
+    fn from_config(config: &Settings) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(
+                config.data.request_timeout_secs,
+            ))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
         Self {
             um_api_base: "https://fapi.binance.com/fapi/v1".to_string(),
             cm_api_base: "https://dapi.binance.com/dapi/v1".to_string(),
-            client: reqwest::Client::new(),
+            client,
         }
     }
 
@@ -500,7 +522,7 @@ impl BinanceMultiMarketAnalyzer {
             .collect();
 
         // Save to /tmp/ for existing pipeline compatibility
-        let tier1_content = tier1_symbols.join("\n") + "\n";
+        let tier1_content = tier1_symbols.join("\n");
         fs::write("/tmp/tier1_usdt_pairs.txt", tier1_content)?;
 
         println!(
@@ -515,13 +537,24 @@ impl BinanceMultiMarketAnalyzer {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
+    // Load configuration with CLI argument overrides
+    let config = Settings::load()
+        .unwrap_or_else(|_| Settings::default())
+        .merge_cli_args(&args);
+
     println!("🚀 BINANCE MULTI-MARKET SYMBOL ANALYZER (Rust)");
     println!("{}", "=".repeat(55));
     println!("🎯 Default Focus: Cross-market Tier-1 symbols");
     println!("📋 Output Format: {:?}", args.format);
+    if config.app.is_debug() {
+        println!(
+            "🔧 Debug mode enabled (validation: {})",
+            args.validate_tier1
+        );
+    }
 
-    // Initialize analyzer
-    let analyzer = BinanceMultiMarketAnalyzer::new();
+    // Initialize analyzer with configuration
+    let analyzer = BinanceMultiMarketAnalyzer::from_config(&config);
 
     // Fetch and analyze data
     let (um_data, cm_data) = analyzer.fetch_market_data().await?;

@@ -11,6 +11,8 @@ use std::fs;
 use std::process::Command;
 use std::time::Instant;
 
+use rangebar::config::{CliConfigMerge, Settings};
+
 #[derive(Debug, Serialize, Deserialize)]
 struct AnalysisConfig {
     start_date: String,
@@ -409,8 +411,27 @@ struct AnalysisArgs {
     system_info: bool,
 }
 
+impl CliConfigMerge for AnalysisArgs {
+    fn merge_into_config(&self, config: &mut Settings) {
+        // Enable debug mode if config is requested for detailed output
+        if self.config {
+            config.app.debug_mode = true;
+        }
+
+        // This binary is parallel by nature, so ensure performance settings are optimal
+        if self.run {
+            config.app.enable_metrics = true;
+        }
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = AnalysisArgs::parse();
+
+    // Load configuration with CLI argument overrides
+    let _config = Settings::load()
+        .unwrap_or_else(|_| Settings::default())
+        .merge_cli_args(&args);
 
     // Handle informational flags first (user safety)
     if args.config {

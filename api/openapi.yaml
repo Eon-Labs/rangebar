@@ -1,0 +1,507 @@
+openapi: 3.1.1
+info:
+  title: Rangebar Processing API
+  description: |
+    High-performance range bar construction and analysis API.
+
+    ## Core Features
+    - 🚀 **137M+ trades/second** range bar processing
+    - 📊 **Tier-1 symbol discovery** across Binance futures markets
+    - 🔒 **Non-lookahead bias** temporal integrity guarantee
+    - ⚡ **Fixed-point arithmetic** (no floating-point errors)
+    - 🔧 **Pure Rust** implementation with streaming capabilities
+
+    ## Range Bar Algorithm
+    Range bars close when price moves ±threshold% from the bar's **opening price**.
+    Non-lookahead bias ensures thresholds are computed only from prior state.
+  version: 0.5.0
+  contact:
+    name: Rangebar API Support
+    url: https://github.com/your-repo/rangebar
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Development server
+  - url: https://api.rangebar.com/v1
+    description: Production server
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      operationId: getHealth
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /symbols/tier1:
+    get:
+      summary: Get Tier-1 cryptocurrency symbols
+      description: |
+        Returns Tier-1 instruments available across all three Binance futures markets:
+        - UM Futures (USDT-margined)
+        - UM Futures (USDC-margined)
+        - CM Futures (Coin-margined)
+      operationId: getTier1Symbols
+      tags:
+        - Symbols
+      responses:
+        '200':
+          description: List of Tier-1 symbols
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tier1SymbolsResponse'
+
+  /rangebar/generate:
+    post:
+      summary: Generate range bars from trade data
+      description: |
+        Process aggregated trades into range bars using specified threshold.
+        Non-lookahead bias algorithm ensures temporal integrity.
+      operationId: generateRangeBars
+      tags:
+        - Range Bars
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateRangeBarsRequest'
+      responses:
+        '200':
+          description: Range bars generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RangeBarsResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Processing error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /rangebar/stream:
+    get:
+      summary: Stream range bars via WebSocket
+      description: |
+        Real-time range bar generation via WebSocket connection.
+        Constant memory usage streaming architecture.
+      operationId: streamRangeBars
+      tags:
+        - Range Bars
+        - Streaming
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "BTCUSDT"
+        - name: threshold_pct
+          in: query
+          required: true
+          schema:
+            type: number
+            format: float
+            minimum: 0.0001
+            maximum: 0.1
+            example: 0.008
+      responses:
+        '101':
+          description: WebSocket connection established
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /statistics/compute:
+    post:
+      summary: Compute statistical analysis on range bars
+      description: |
+        Comprehensive financial statistics and market microstructure analysis.
+        Uses streaming algorithms for memory efficiency.
+      operationId: computeStatistics
+      tags:
+        - Statistics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputeStatisticsRequest'
+      responses:
+        '200':
+          description: Statistics computed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatisticsResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /export/{format}:
+    get:
+      summary: Export range bars in specified format
+      description: |
+        Export processed range bars in CSV, JSON, or Parquet format.
+        Supports large datasets with streaming export.
+      operationId: exportRangeBars
+      tags:
+        - Export
+      parameters:
+        - name: format
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [csv, json, parquet]
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: threshold_pct
+          in: query
+          required: true
+          schema:
+            type: number
+            format: float
+      responses:
+        '200':
+          description: Export successful
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            text/csv:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RangeBar'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - version
+      properties:
+        status:
+          type: string
+          example: "healthy"
+        version:
+          type: string
+          example: "0.5.0"
+        uptime_seconds:
+          type: integer
+          format: int64
+          example: 3600
+
+    Tier1SymbolsResponse:
+      type: object
+      required:
+        - symbols
+        - count
+      properties:
+        symbols:
+          type: array
+          items:
+            type: string
+          example: ["BTC", "ETH", "SOL", "ADA", "AVAX"]
+        count:
+          type: integer
+          example: 18
+        usdt_pairs:
+          type: array
+          items:
+            type: string
+          example: ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+
+    AggTrade:
+      type: object
+      required:
+        - agg_trade_id
+        - price
+        - volume
+        - first_trade_id
+        - last_trade_id
+        - timestamp
+        - is_buyer_maker
+      properties:
+        agg_trade_id:
+          type: integer
+          format: int64
+          description: Aggregate trade ID
+        price:
+          type: string
+          description: Fixed-point price representation
+          example: "50000.12345000"
+        volume:
+          type: string
+          description: Fixed-point volume representation
+          example: "1.50000000"
+        first_trade_id:
+          type: integer
+          format: int64
+        last_trade_id:
+          type: integer
+          format: int64
+        timestamp:
+          type: integer
+          format: int64
+          description: Unix timestamp in milliseconds
+        is_buyer_maker:
+          type: boolean
+
+    RangeBar:
+      type: object
+      required:
+        - open_time
+        - close_time
+        - open
+        - high
+        - low
+        - close
+        - volume
+        - trade_count
+        - first_trade_id
+        - last_trade_id
+      properties:
+        open_time:
+          type: integer
+          format: int64
+          description: Bar opening timestamp
+        close_time:
+          type: integer
+          format: int64
+          description: Bar closing timestamp
+        open:
+          type: string
+          description: Opening price (fixed-point)
+        high:
+          type: string
+          description: Highest price (fixed-point)
+        low:
+          type: string
+          description: Lowest price (fixed-point)
+        close:
+          type: string
+          description: Closing price (fixed-point)
+        volume:
+          type: string
+          description: Total volume (fixed-point)
+        trade_count:
+          type: integer
+          format: int32
+        first_trade_id:
+          type: integer
+          format: int64
+        last_trade_id:
+          type: integer
+          format: int64
+        threshold_lower:
+          type: string
+          description: Lower breach threshold (fixed-point)
+        threshold_upper:
+          type: string
+          description: Upper breach threshold (fixed-point)
+
+    GenerateRangeBarsRequest:
+      type: object
+      required:
+        - symbol
+        - threshold_pct
+        - trades
+      properties:
+        symbol:
+          type: string
+          example: "BTCUSDT"
+        threshold_pct:
+          type: number
+          format: float
+          minimum: 0.0001
+          maximum: 0.1
+          example: 0.008
+          description: Range threshold as percentage (0.008 = 0.8%)
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/AggTrade'
+          maxItems: 1000000
+          description: Aggregated trades to process
+
+    RangeBarsResponse:
+      type: object
+      required:
+        - symbol
+        - threshold_pct
+        - bars
+        - processing_stats
+      properties:
+        symbol:
+          type: string
+        threshold_pct:
+          type: number
+          format: float
+        bars:
+          type: array
+          items:
+            $ref: '#/components/schemas/RangeBar'
+        processing_stats:
+          $ref: '#/components/schemas/ProcessingStats'
+
+    ProcessingStats:
+      type: object
+      required:
+        - trades_processed
+        - bars_generated
+        - processing_time_ms
+      properties:
+        trades_processed:
+          type: integer
+          format: int64
+        bars_generated:
+          type: integer
+          format: int32
+        processing_time_ms:
+          type: integer
+          format: int64
+        memory_used_bytes:
+          type: integer
+          format: int64
+
+    ComputeStatisticsRequest:
+      type: object
+      required:
+        - bars
+      properties:
+        bars:
+          type: array
+          items:
+            $ref: '#/components/schemas/RangeBar'
+        config:
+          $ref: '#/components/schemas/StatisticsConfig'
+
+    StatisticsConfig:
+      type: object
+      properties:
+        include_distributions:
+          type: boolean
+          default: true
+        include_performance_metrics:
+          type: boolean
+          default: true
+        parallel_computation:
+          type: boolean
+          default: true
+
+    StatisticsResponse:
+      type: object
+      required:
+        - summary
+        - computation_time_ms
+      properties:
+        summary:
+          type: object
+          description: Statistical summary results
+        market_data:
+          type: object
+          description: Market data statistics
+        range_bars:
+          type: object
+          description: Range bar specific statistics
+        distributions:
+          type: object
+          description: Distribution analysis
+        performance:
+          type: object
+          description: Performance metrics
+        computation_time_ms:
+          type: integer
+          format: int64
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: "INVALID_THRESHOLD"
+        message:
+          type: string
+          example: "Threshold percentage must be between 0.01% and 10%"
+        details:
+          type: object
+          description: Additional error context
+        request_id:
+          type: string
+          format: uuid
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication (future implementation)
+
+tags:
+  - name: System
+    description: System health and monitoring
+  - name: Symbols
+    description: Tier-1 symbol discovery
+  - name: Range Bars
+    description: Range bar generation and processing
+  - name: Streaming
+    description: Real-time streaming capabilities
+  - name: Statistics
+    description: Statistical analysis and metrics
+  - name: Export
+    description: Data export functionality

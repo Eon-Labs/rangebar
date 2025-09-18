@@ -106,7 +106,7 @@ fn test_fixed_algorithm_behavior() {
 fn test_analysis_mode_compatibility() {
     println!("\n🔬 Testing analysis mode compatibility...");
 
-    let mut processor = RangeBarProcessor::new(8000); // 0.8%
+    let mut processor = RangeBarProcessor::new(25); // 0.25%
 
     let trades = vec![
         AggTrade {
@@ -121,7 +121,7 @@ fn test_analysis_mode_compatibility() {
         // Small movement within threshold
         AggTrade {
             agg_trade_id: 2,
-            price: FixedPoint::from_str("50200.0").unwrap(), // +0.4%
+            price: FixedPoint::from_str("50100.0").unwrap(), // +0.2%
             volume: FixedPoint::from_str("1.0").unwrap(),
             first_trade_id: 2,
             last_trade_id: 2,
@@ -167,10 +167,10 @@ pub fn reproduce_audit_bug() {
 
     // But the result was "Bar closed without any breach occurring!"
 
-    println!("🧪 Testing TRUE 0.5% threshold (5000 basis points)...");
+    println!("🧪 Testing TRUE 0.5% threshold...");
     test_with_audit_data(5000);
 
-    println!("\n🧪 Testing MISUNDERSTOOD 0.05% threshold (500 basis points)...");
+    println!("\n🧪 Testing MISUNDERSTOOD 0.05% threshold...");
     test_with_audit_data(500);
 
     println!("\n🧪 Testing end-of-data scenario...");
@@ -450,10 +450,9 @@ pub fn analyze_audit_discrepancy() {
 pub fn test_small_threshold_adversarial() {
     println!("🎯 Adversarial testing with very small thresholds...");
 
-    // Test both 0.25% (2500 basis points) and 0.3% (3000 basis points)
-    // Note: This system uses threshold_bps / 1,000,000 = percentage
-    // So 2500 = 0.25%, 3000 = 0.3% (not standard basis point definition)
-    let test_thresholds = [(2500, "0.25%"), (3000, "0.3%")];
+    // Test both 0.25% and 0.3% thresholds
+    // Note: This system uses threshold_bps / 10,000 = percentage
+    let test_thresholds = [(25, "0.25%"), (30, "0.3%")];
 
     for (threshold_bps, threshold_desc) in test_thresholds {
         println!(
@@ -600,7 +599,7 @@ fn test_specific_small_threshold(threshold_bps: u32, threshold_desc: &str) {
 fn test_extreme_scenarios_small_thresholds() {
     println!("\n🔬 Testing extreme scenarios with small thresholds...");
 
-    // Test with 0.1% threshold (1000 basis points in this system)
+    // Test with 0.1% threshold
     let mut processor = RangeBarProcessor::new(1000);
 
     // Create trades with very small price movements
@@ -659,7 +658,7 @@ fn test_precision_boundaries() {
     println!("\n🎯 Testing precision boundaries...");
 
     let price = FixedPoint::from_str("111441.5").unwrap();
-    let critical_thresholds = [1000, 2500, 3000, 5000]; // 0.1%, 0.25%, 0.3%, 0.5%
+    let critical_thresholds = [10, 25, 30, 50]; // 0.1%, 0.25%, 0.3%, 0.5%
 
     for &threshold_bps in &critical_thresholds {
         let (upper, lower) = price.compute_range_thresholds(threshold_bps);
@@ -695,7 +694,7 @@ pub fn debug_threshold_calculation_issue() {
 
     let open_price = FixedPoint::from_str("100000.0").unwrap();
     let test_price = FixedPoint::from_str("100200.0").unwrap(); // +0.2%
-    let threshold_bps = 250; // 0.25%
+    let threshold_bps = 25;
 
     println!("   Open price: {}", open_price);
     println!("   Test price: {} (+0.2%)", test_price);

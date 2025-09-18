@@ -216,7 +216,7 @@ git push origin v0.4.2
 5. ✅ Artifact uploads (binaries)
 
 ### Crates.io Configuration
-- **Version**: 0.4.1 (current release)
+- **Version**: 0.5.0 (current release)
 - **License**: MIT
 - **Features**: statistics, data-integrity, arrow-support, python bindings
 - **Performance**: 137M+ trades/sec range bar construction

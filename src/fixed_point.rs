@@ -9,8 +9,8 @@ use std::str::FromStr;
 /// Scale factor for 8 decimal places (100,000,000)
 pub const SCALE: i64 = 100_000_000;
 
-/// Scale factor for basis points calculations (1,000,000)
-pub const BASIS_POINTS_SCALE: u32 = 1_000_000;
+/// Scale factor for basis points calculations (standard: 10,000)
+pub const BASIS_POINTS_SCALE: u32 = 10_000;
 
 /// Fixed-point decimal representation using i64 with 8 decimal precision
 ///
@@ -21,6 +21,7 @@ pub const BASIS_POINTS_SCALE: u32 = 1_000_000;
 /// - 50000.12345678 → 5000012345678
 /// - 1.5 → 150000000
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct FixedPoint(pub i64);
 
 impl FixedPoint {
@@ -92,13 +93,13 @@ impl FixedPoint {
     ///
     /// # Arguments
     ///
-    /// * `threshold_bps` - Threshold in basis points (8000 = 0.8%)
+    /// * `threshold_bps` - Threshold value (2500 for 0.25%)
     ///
     /// # Returns
     ///
     /// Tuple of (upper_threshold, lower_threshold)
     pub fn compute_range_thresholds(&self, threshold_bps: u32) -> (FixedPoint, FixedPoint) {
-        // Calculate threshold delta: price * (threshold_bps / 1,000,000)
+        // Calculate threshold delta: price * (threshold_bps / 10,000)
         let delta = (self.0 as i128 * threshold_bps as i128) / BASIS_POINTS_SCALE as i128;
         let delta = delta as i64;
 
@@ -218,11 +219,11 @@ mod tests {
     #[test]
     fn test_compute_thresholds() {
         let price = FixedPoint::from_str("50000.0").unwrap();
-        let (upper, lower) = price.compute_range_thresholds(8000); // 0.8%
+        let (upper, lower) = price.compute_range_thresholds(25); // 0.25%
 
-        // 50000 * 0.008 = 400
-        assert_eq!(upper.to_string(), "50400.00000000");
-        assert_eq!(lower.to_string(), "49600.00000000");
+        // 50000 * 0.0025 = 125
+        assert_eq!(upper.to_string(), "50125.00000000");
+        assert_eq!(lower.to_string(), "49875.00000000");
     }
 
     #[test]
