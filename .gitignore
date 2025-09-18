@@ -81,8 +81,14 @@ Thumbs.db
 *.csv
 *.parquet
 *.json
+*.zip
 data/
 cache/
+
+# Downloaded data directories
+repos/binance-public-data/
+test_comparison/
+test_data/
 
 # Build artifacts
 *.whl
