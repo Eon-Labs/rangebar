@@ -6,7 +6,7 @@ use rangebar::fixed_point::FixedPoint;
 ///
 /// Now includes Production Streaming V2 with bounded memory architecture.
 use rangebar::range_bars::ExportRangeBarProcessor;
-use rangebar::types::{AggTrade, RangeBar};
+use rangebar::types::AggTrade;
 use std::time::Instant;
 
 #[cfg(feature = "streaming-v2")]
@@ -419,9 +419,9 @@ fn print_monthly_results(metrics: &CrossYearPerformanceMetrics) {
     );
     println!(
         "    ⚡ Streaming: {:.0} t/s, {}ms, {:.1}MB peak",
-        metrics.streaming_throughput_trades_per_sec,
-        metrics.streaming_duration_ms,
-        metrics.streaming_memory_peak_kb as f64 / 1024.0
+        metrics.streaming_v2_throughput_trades_per_sec,
+        metrics.streaming_v2_duration_ms,
+        metrics.streaming_v2_memory_peak_kb as f64 / 1024.0
     );
     println!(
         "    🔒 Streaming V2 (Bounded): {:.0} t/s, {}ms, {:.1}MB peak",
@@ -431,14 +431,14 @@ fn print_monthly_results(metrics: &CrossYearPerformanceMetrics) {
     );
 
     println!("    📈 Speed Ratios:");
-    println!("      Legacy vs Streaming: {:.2}x", metrics.speed_ratio);
+    println!("      Legacy vs Streaming: {:.2}x", metrics.v2_speed_ratio);
     println!("      Legacy vs V2 Bounded: {:.2}x", metrics.v2_speed_ratio);
 
     println!("    💾 Memory Efficiency:");
     println!(
         "      Streaming vs Batch: {:.1}% {} batch",
-        metrics.memory_efficiency.abs(),
-        if metrics.memory_efficiency < 0.0 {
+        metrics.v2_memory_efficiency.abs(),
+        if metrics.v2_memory_efficiency < 0.0 {
             "better than"
         } else {
             "worse than"
@@ -531,10 +531,10 @@ fn validate_performance_criteria(all_metrics: &[CrossYearPerformanceMetrics]) {
             );
         }
 
-        if metrics.streaming_throughput_trades_per_sec < 10_000.0 {
+        if metrics.streaming_v2_throughput_trades_per_sec < 10_000.0 {
             println!(
                 "  ⚠️  {} streaming throughput low: {:.0} t/s",
-                metrics.month, metrics.streaming_throughput_trades_per_sec
+                metrics.month, metrics.streaming_v2_throughput_trades_per_sec
             );
         }
 
@@ -547,11 +547,11 @@ fn validate_performance_criteria(all_metrics: &[CrossYearPerformanceMetrics]) {
             );
         }
 
-        if metrics.streaming_memory_peak_kb > 1_000_000 {
+        if metrics.streaming_v2_memory_peak_kb > 1_000_000 {
             println!(
                 "  ⚠️  {} streaming memory high: {:.1}MB",
                 metrics.month,
-                metrics.streaming_memory_peak_kb as f64 / 1024.0
+                metrics.streaming_v2_memory_peak_kb as f64 / 1024.0
             );
         }
     }

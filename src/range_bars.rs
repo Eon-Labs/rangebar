@@ -163,10 +163,9 @@ impl RangeBarProcessor {
 
         // Add final partial bar only if explicitly requested
         // This preserves algorithm integrity: bars should only close on threshold breach
-        if include_incomplete
-            && let Some(bar_state) = current_bar {
-                bars.push(bar_state.bar);
-            }
+        if include_incomplete && let Some(bar_state) = current_bar {
+            bars.push(bar_state.bar);
+        }
 
         Ok(bars)
     }
