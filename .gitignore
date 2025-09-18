@@ -94,5 +94,9 @@ test_data/
 *.whl
 *.egg-info/
 
+# Test binaries
+test_v2_validation
+statistics_v2_validation
+
 # Logs
 *.log
