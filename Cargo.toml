@@ -1,6 +1,6 @@
 [package]
 name = "rangebar"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["Terry Li <terry@eonlabs.com>"]
 categories = ["algorithms", "data-structures", "finance"]
 documentation = "https://docs.rs/rangebar"
@@ -10,7 +10,7 @@ keywords = ["finance", "trading", "range-bars", "cryptocurrency", "binance"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/Eon-Labs/rangebar"
-rust-version = "1.85"
+rust-version = "1.90"
 description = """
 High-performance non-lookahead bias range bar construction for Binance UM Futures.
 Processes 137M+ trades/sec with comprehensive Tier-1 cryptocurrency analysis.
