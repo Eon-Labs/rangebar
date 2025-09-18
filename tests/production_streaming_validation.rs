@@ -208,7 +208,10 @@ async fn test_memory_comparison_old_vs_new() {
     println!("  📊 Streaming bars processed: {}", new_bars_count);
 
     // Verify architectural differences: accumulation vs streaming
-    assert!(!accumulated_bars.is_empty(), "Legacy pattern should accumulate bars");
+    assert!(
+        !accumulated_bars.is_empty(),
+        "Legacy pattern should accumulate bars"
+    );
     assert!(new_bars_count > 0, "Streaming pattern should process bars");
 
     // The key difference: accumulated bars remain in memory, streaming bars are discarded
