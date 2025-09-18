@@ -21,6 +21,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Free disk space (Ubuntu only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          echo "=== Before cleanup ==="
+          df -h
+          echo "=== Removing unnecessary packages ==="
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get remove -y '^aspnetcore-.*' '^dotnet-.*' '^llvm-.*' 'php.*' '^mysql-.*' azure-cli google-cloud-cli google-chrome-stable firefox powershell mono-devel libgl1-mesa-dri
+          sudo apt-get autoremove -y
+          sudo apt-get autoclean
+          echo "=== After cleanup ==="
+          df -h
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
@@ -62,6 +78,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          echo "=== Before cleanup ==="
+          df -h
+          echo "=== Removing unnecessary packages ==="
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get remove -y '^aspnetcore-.*' '^dotnet-.*' '^llvm-.*' 'php.*' '^mysql-.*' azure-cli google-cloud-cli google-chrome-stable firefox powershell mono-devel libgl1-mesa-dri
+          sudo apt-get autoremove -y
+          sudo apt-get autoclean
+          echo "=== After cleanup ==="
+          df -h
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
