@@ -1,6 +1,6 @@
 [package]
 name = "rangebar"
-version = "0.5.4"
+version = "0.5.5"
 authors = ["Terry Li <terry@eonlabs.com>"]
 categories = ["algorithms", "data-structures", "finance"]
 documentation = "https://docs.rs/rangebar"
