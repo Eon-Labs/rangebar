@@ -1946,7 +1946,7 @@ impl StatisticalEngine {
             let mut sorted_prices = prices.clone();
             sorted_prices.sort_by(|a, b| a.partial_cmp(b).unwrap());
             let mid = sorted_prices.len() / 2;
-            if sorted_prices.len() % 2 == 0 {
+            if sorted_prices.len().is_multiple_of(2) {
                 (sorted_prices[mid - 1] + sorted_prices[mid]) / 2.0
             } else {
                 sorted_prices[mid]

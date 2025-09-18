@@ -160,11 +160,10 @@ impl ProductionStreamingProcessor {
                 Ok(Some(trade)) => trade,
                 Ok(None) => {
                     // Channel closed - send final incomplete bar if exists
-                    if let Some(final_bar) = self.processor.get_incomplete_bar() {
-                        if let Err(e) = self.send_bar_with_backpressure(final_bar).await {
+                    if let Some(final_bar) = self.processor.get_incomplete_bar()
+                        && let Err(e) = self.send_bar_with_backpressure(final_bar).await {
                             println!("Failed to send final incomplete bar: {:?}", e);
                         }
-                    }
                     break;
                 }
                 Err(_) => continue, // Timeout, check circuit breaker again
@@ -176,12 +175,11 @@ impl ProductionStreamingProcessor {
                     self.circuit_breaker.record_success();
 
                     // If bar completed, send with backpressure handling
-                    if let Some(bar) = bar_opt {
-                        if let Err(e) = self.send_bar_with_backpressure(bar).await {
+                    if let Some(bar) = bar_opt
+                        && let Err(e) = self.send_bar_with_backpressure(bar).await {
                             println!("Failed to send bar: {:?}", e);
                             self.circuit_breaker.record_failure();
                         }
-                    }
                 }
                 Err(e) => {
                     println!("Trade processing error: {:?}", e);
