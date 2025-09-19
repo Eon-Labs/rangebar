@@ -1,0 +1,321 @@
+# Data Structure Validation Plan
+project: rangebar
+version: 1.0.0
+objective: Comprehensive aggTrades data structure validation across Tier-1 symbols for spot and UM markets
+
+plan_type: data_validation_plan
+created: "2025-09-19T22:35:00Z"
+openapi_version: "3.1.1"
+specification_compliance: true
+
+overview: |
+  Systematic validation of Binance aggTrades data structures across 18 Tier-1
+  cryptocurrency symbols spanning 2022-2025 timeframe. Validates format consistency,
+  header variations, timestamp integrity, and cross-market structural differences.
+
+scope:
+  symbols:
+    tier1_count: 18
+    symbols: ["BTC", "ETH", "SOL", "ADA", "AVAX", "BCH", "BNB", "DOGE", "FIL", "LINK", "LTC", "NEAR", "UNI", "XRP", "AAVE", "SUI", "WIF", "WLD"]
+    source: src/tier1.rs
+
+  markets:
+    - spot
+    - um_futures
+
+  temporal_coverage:
+    start_date: "2022-01-01"
+    end_date: "2025-09-01"
+    sampling_strategy: quarterly
+    sample_points: 576  # 16 quarters × 18 symbols × 2 markets
+
+current_state:
+  header_detection: ✅ Implemented in src/bin/rangebar_export.rs:83
+  timestamp_handling: ✅ Consistent i64 13-digit milliseconds
+  boolean_parsing: ✅ Handles "True/False" and "true/false"
+  csv_parsing: ✅ ReaderBuilder with dynamic header detection
+  validation_tool: ✅ Implemented in src/bin/data_structure_validator.rs
+  validation_testing: ✅ Successfully tested with BTCUSDT spot/um markets
+  ground_truth_db: ❌ Not implemented
+
+# Empirical Findings (2024-07-01 BTCUSDT Sample)
+empirical_findings:
+  market_structure_differences:
+    spot_market:
+      headers: false
+      column_names: ["a", "p", "q", "f", "l", "T", "m"]  # Short format
+      boolean_format: "Python_style"  # "True"/"False"
+      timestamp_format: "13_digit_milliseconds"
+
+    um_futures_market:
+      headers: true
+      column_names: ["agg_trade_id", "price", "quantity", "first_trade_id", "last_trade_id", "transact_time", "is_buyer_maker"]  # Descriptive format
+      boolean_format: "requires_investigation"
+      timestamp_format: "requires_investigation"
+
+  validation_insights:
+    timestamp_consistency: "13-digit milliseconds confirmed across markets"
+    csv_auto_detection: "Successfully differentiates header presence"
+    file_size_variation: "spot: 13.5MB, um: 11.2MB for same date"
+    structure_signatures: "Unique per market type - enables automated detection"
+
+# Implementation Architecture
+components:
+  data_structure_validator:
+    binary_path: src/bin/data_structure_validator.rs
+    purpose: Main validation execution engine
+    dependencies:
+      - tokio
+      - reqwest
+      - csv
+      - serde
+      - chrono
+    configuration:
+      parallel_workers: 8
+      download_timeout_secs: 30
+      retry_attempts: 3
+      checksum_validation: true
+
+  structure_profile_generator:
+    module_path: src/validation/structure_profile.rs
+    purpose: Per-symbol structure analysis
+    output_format: JSON
+
+  ground_truth_database:
+    storage_path: output/data_structure_validation/ground_truth.db
+    format: SQLite
+    schema_version: "1.0"
+
+  validation_index:
+    path: output/data_structure_validation/{timestamp}_validation_run/index.json
+    format: JSON
+    openapi_schema: true
+
+# Directory Structure Specification
+output_structure:
+  base_path: output/data_structure_validation/
+
+  run_directory: "{timestamp}_validation_run/"
+  timestamp_format: "YYYYMMDD_HHMMSS"
+
+  subdirectories:
+    raw_samples:
+      structure: "{market}/{symbol}/"
+      naming: "{market}_{symbol}_{date}_sample.csv"
+
+    structure_analysis:
+      naming: "{symbol}_structure_profile.json"
+
+    comparative_reports:
+      files:
+        - spot_vs_um_structure_comparison.json
+        - temporal_evolution_2022_2025.json
+        - header_presence_matrix.csv
+        - column_consistency_report.json
+
+    anomaly_detection:
+      files:
+        - format_anomalies_log.json
+        - missing_data_inventory.csv
+        - validation_failures.json
+
+    summary_reports:
+      files:
+        - executive_summary.md
+        - data_structure_ground_truth.json
+        - compatibility_matrix.csv
+        - migration_guide.md
+
+# Validation Rules Engine
+validation_rules:
+  timestamp_validation:
+    rule: "timestamp.to_string().len() == 13"
+    error_handling: exception_only
+    fallback: null
+
+  column_consistency:
+    expected_columns: 7
+    column_names: ["a", "p", "q", "f", "l", "T", "m"]
+    error_handling: exception_only
+    fallback: null
+
+  boolean_format_detection:
+    valid_formats: ["True/False", "true/false"]
+    error_handling: exception_only
+    fallback: null
+
+  file_integrity:
+    checksum_validation: SHA256
+    error_handling: exception_only
+    fallback: null
+
+# Sampling Strategy
+sampling_parameters:
+  quarterly_months: [1, 4, 7, 10]  # Q1, Q2, Q3, Q4
+  sample_day: 1  # First day of month
+
+  symbol_specific_adjustments:
+    new_symbols:
+      - WIF: start_date "2024-01-01"
+      - WLD: start_date "2024-01-01"
+    established_symbols:
+      - BTC: full_coverage "2022-01-01"
+      - ETH: full_coverage "2022-01-01"
+
+# Data Models
+schemas:
+  StructureProfile:
+    type: object
+    properties:
+      symbol:
+        type: string
+        pattern: "^[A-Z]+$"
+      market:
+        type: string
+        enum: ["spot", "um"]
+      structure_signature:
+        type: string
+        description: "SHA256 hash of structure metadata"
+      column_profile:
+        $ref: "#/components/schemas/ColumnProfile"
+      format_variations:
+        type: array
+        items:
+          $ref: "#/components/schemas/FormatVariation"
+      data_statistics:
+        $ref: "#/components/schemas/DataStatistics"
+    required: ["symbol", "market", "structure_signature"]
+
+  ColumnProfile:
+    type: object
+    properties:
+      count:
+        type: integer
+        minimum: 1
+      names:
+        type: array
+        items:
+          type: string
+      types:
+        type: array
+        items:
+          type: string
+          enum: ["integer", "float", "string", "boolean"]
+      precision:
+        type: array
+        items:
+          type: integer
+    required: ["count", "names", "types"]
+
+  ValidationManifest:
+    type: object
+    properties:
+      validation_id:
+        type: string
+        pattern: "^val_[0-9]{8}_[0-9]{6}_.*$"
+      execution_metadata:
+        $ref: "#/components/schemas/ExecutionMetadata"
+      coverage:
+        $ref: "#/components/schemas/CoverageMetadata"
+      key_findings:
+        type: object
+    required: ["validation_id", "execution_metadata", "coverage"]
+
+# Error Handling Strategy
+error_handling:
+  philosophy: exception_only
+
+  failure_modes:
+    download_failure:
+      action: raise_exception
+      retry: false
+      fallback: null
+
+    parse_failure:
+      action: raise_exception
+      retry: false
+      fallback: null
+
+    validation_failure:
+      action: raise_exception
+      retry: false
+      fallback: null
+
+    checksum_mismatch:
+      action: raise_exception
+      retry: false
+      fallback: null
+
+# Progress Tracking
+milestones:
+  - name: "Validation Tool Implementation"
+    status: completed
+    binary: data_structure_validator
+    completed_date: "2025-09-19"
+    implementation_path: "src/bin/data_structure_validator.rs"
+
+  - name: "Structure Profile Schema"
+    status: completed
+    module: structure_profile
+    completed_date: "2025-09-19"
+    schema_format: "OpenAPI 3.1.1 compliant JSON"
+
+  - name: "Basic Validation Execution"
+    status: completed
+    test_samples: 4
+    completed_date: "2025-09-19"
+    test_results: "output/data_structure_validation/20250919_071645_validation_run/"
+
+  - name: "Project Memory Integration"
+    status: completed
+    integration_path: "CLAUDE.md"
+    completed_date: "2025-09-19"
+
+  - name: "Ground Truth Database"
+    status: pending
+    storage: SQLite
+
+  - name: "Full Tier-1 Validation Execution"
+    status: pending
+    target_samples: 576
+
+  - name: "Comprehensive Report Generation"
+    status: pending
+    formats: ["JSON", "CSV", "MD"]
+
+# Integration Points
+integration:
+  existing_components:
+    - src/bin/rangebar_export.rs: "Reuse CSV parsing logic"
+    - src/tier1.rs: "Symbol enumeration source"
+    - src/config/data.rs: "Market configuration"
+
+  future_enhancements:
+    - range_bar_processor: "Structure-aware parsing"
+    - export_tools: "Validated format assumptions"
+    - statistical_analysis: "Structure-dependent calculations"
+
+# Success Criteria
+success_criteria:
+  coverage:
+    symbols_validated: 18
+    markets_validated: 2
+    temporal_coverage_pct: 100
+
+  quality:
+    validation_failures_pct: 0
+    format_anomalies_documented: true
+    ground_truth_established: true
+
+  deliverables:
+    executable_tool: true
+    comprehensive_report: true
+    migration_guide: true
+    compatibility_matrix: true
+
+# Version Control
+changelog:
+  v1.0.0:
+    date: "2025-09-19"
+    changes: ["Initial specification"]
+    author: "Claude Code"

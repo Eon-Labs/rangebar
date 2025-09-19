@@ -40,17 +40,60 @@ cargo run --bin rangebar-export
 
 # Generate range bars from aggTrades
 ./target/release/rangebar BTCUSDT 2024-01-01 2024-01-02 0.008 ./output
+
+# Validate data structure across markets and symbols
+cargo run --bin data-structure-validator --features data-integrity -- --symbols BTCUSDT,ETHUSDT --start-date 2024-01-01 --end-date 2024-07-01
+```
+
+## Data Structure Validation
+
+### Validation Tool Overview
+**Purpose**: Systematic validation of Binance aggTrades data structures across Tier-1 cryptocurrency symbols for both spot and UM futures markets.
+
+**Implementation**: `src/bin/data_structure_validator.rs`
+**Configuration**: `docs/planning/data-structure-validation-plan.yml`
+
+### Key Findings (2024 Data)
+
+#### Market-Specific Structure Differences
+**Spot Market (data.binance.vision/data/spot/)**:
+- **Headers**: None
+- **Columns**: Short (`a,p,q,f,l,T,m`)
+- **Boolean**: `False/True` (capitalized)
+- **Timestamp**: 13-digit milliseconds
+
+**UM Futures Market (data.binance.vision/data/futures/um/)**:
+- **Headers**: Present
+- **Columns**: Descriptive (`agg_trade_id,price,quantity,first_trade_id,last_trade_id,transact_time,is_buyer_maker`)
+- **Boolean**: `false/true` (lowercase)
+- **Timestamp**: 13-digit milliseconds
+
+**Parser**: Uses `serde` aliases and `flexible_bool()` deserializer to handle both formats automatically.
+
+#### CSV Parsing Implications
+- **Auto-Detection**: `detect_csv_headers()` function handles both formats automatically
+- **Column Mapping**: Different naming conventions require market-aware parsing
+- **Data Integrity**: SHA256 checksum validation available with `--features data-integrity`
+
+### Validation Output Structure
+```
+output/data_structure_validation/{timestamp}_validation_run/
+├── index.json                 # Validation manifest with key findings
+├── validation_results.json    # Detailed per-sample results
+└── structure_analysis/
+    └── {SYMBOL}_structure_profile.json  # Per-symbol structure profiles
 ```
 
 ## Architecture
 
 ### Data Pipeline
 1. **Symbol Discovery**: `tier1-symbol-discovery` → Multi-market symbol analysis
-2. **Data Fetching**: `binance_historical_data` → Raw CSV/ZIP files
-3. **Preprocessing**: CSV → Parquet with schema validation
-4. **Computation**: Pure Rust processes Parquet → Range bars
-5. **Analysis**: `rangebar-analyze` → Parallel Tier-1 analysis
-6. **Output**: Structured bar data (OHLCV format)
+2. **Data Structure Validation**: `data-structure-validator` → Cross-market format verification
+3. **Data Fetching**: `binance_historical_data` → Raw CSV/ZIP files with validated schemas
+4. **Preprocessing**: CSV → Parquet with schema validation
+5. **Computation**: Pure Rust processes Parquet → Range bars
+6. **Analysis**: `rangebar-analyze` → Parallel Tier-1 analysis
+7. **Output**: Structured bar data (OHLCV format)
 
 ### Performance Architecture
 - **Pure Rust Implementation**: Production speed (100-1000x faster than reference)
