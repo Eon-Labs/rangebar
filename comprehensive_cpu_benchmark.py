@@ -148,8 +148,8 @@ def analyze_performance_characteristics(results: List[BenchmarkResult]):
     print(f"   Fastest: {max_rate:,.0f} trades/sec")
     print(f"   Slowest: {min_rate:,.0f} trades/sec")
     print(f"   Average: {avg_rate:,.0f} trades/sec")
-    variance_pct = (max_rate - min_rate) / avg_rate * 100 if avg_rate > 0 else 0
-    print(f"   Variance: {variance_pct:.1f}%")
+    variance_ratio = (max_rate - min_rate) / avg_rate if avg_rate > 0 else 0
+    print(f"   Variance: {variance_ratio * 100:.1f}%")
     print()
 
     # Bar generation efficiency

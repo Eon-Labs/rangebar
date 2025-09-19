@@ -79,7 +79,7 @@ class RangeBarStatisticalAnalyzer:
             processed_bar['duration_ms'] = bar['close_time'] - bar['open_time']
             processed_bar['duration_minutes'] = processed_bar['duration_ms'] / (1000 * 60)
             processed_bar['price_change'] = processed_bar['close'] - processed_bar['open']
-            processed_bar['price_change_pct'] = (processed_bar['price_change'] / processed_bar['open']) * 100
+            processed_bar['price_change_ratio'] = (processed_bar['price_change'] / processed_bar['open'])
             processed_bar['is_bullish'] = processed_bar['close'] > processed_bar['open']
             processed_bar['body_size'] = abs(processed_bar['close'] - processed_bar['open'])
             processed_bar['upper_wick'] = processed_bar['high'] - max(processed_bar['open'], processed_bar['close'])
@@ -118,10 +118,10 @@ class RangeBarStatisticalAnalyzer:
 
         # Price movement statistics
         price_stats = {
-            'mean_change_pct': df['price_change_pct'].mean(),
-            'std_change_pct': df['price_change_pct'].std(),
-            'skewness': stats.skew(df['price_change_pct']),
-            'kurtosis': stats.kurtosis(df['price_change_pct']),
+            'mean_change_ratio': df['price_change_ratio'].mean(),
+            'std_change_ratio': df['price_change_ratio'].std(),
+            'skewness': stats.skew(df['price_change_ratio']),
+            'kurtosis': stats.kurtosis(df['price_change_ratio']),
             'bullish_ratio': df['is_bullish'].mean(),
             'median_body_size': df['body_size'].median(),
         }
@@ -158,7 +158,7 @@ class RangeBarStatisticalAnalyzer:
         microstructure_stats = {
             'mean_buy_trade_ratio': df['buy_trade_ratio'].mean(),
             'buy_pressure_consistency': 1 - df['buy_ratio'].std(),  # Lower std = more consistent
-            'order_flow_correlation': df['buy_ratio'].corr(df['price_change_pct']),
+            'order_flow_correlation': df['buy_ratio'].corr(df['price_change_ratio']),
             'volume_price_correlation': df['volume'].corr(df['body_size']),
         }
 
@@ -179,7 +179,7 @@ class RangeBarStatisticalAnalyzer:
         # Print key insights
         print("\n🎯 Key Statistical Insights:")
         print(f"   📊 Market Bias: {self.statistics['summary']['dominant_direction']} ({price_stats['bullish_ratio']:.1%} bullish bars)")
-        print(f"   📈 Avg Price Move: {price_stats['mean_change_pct']:.3f}% ± {price_stats['std_change_pct']:.3f}%")
+        print(f"   📈 Avg Price Move: {price_stats['mean_change_ratio'] * 100:.3f}% ± {price_stats['std_change_ratio'] * 100:.3f}%")
         print(f"   💧 Avg Buy Pressure: {volume_stats['mean_buy_ratio']:.1%} of volume")
         print(f"   ⏱️  Avg Bar Duration: {duration_stats['mean_duration_min']:.1f} minutes")
         print(f"   🎯 Order Flow Signal: r={microstructure_stats['order_flow_correlation']:.3f}")
@@ -188,7 +188,7 @@ class RangeBarStatisticalAnalyzer:
 
     def _classify_market_regime(self, price_stats: Dict, volume_stats: Dict) -> str:
         """Classify market regime based on statistical characteristics"""
-        volatility = price_stats['std_change_pct']
+        volatility = price_stats['std_change_ratio']
         volume_consistency = 1 - volume_stats['cv_volume']
 
         if volatility > 0.5:
@@ -210,10 +210,10 @@ class RangeBarStatisticalAnalyzer:
 
         # 1. Price Change Distribution
         ax = axes[0, 0]
-        sns.histplot(data=df, x='price_change_pct', kde=True, ax=ax, alpha=0.7)
-        ax.axvline(df['price_change_pct'].mean(), color='red', linestyle='--', alpha=0.8, label='Mean')
-        ax.axvline(0.8, color='green', linestyle='--', alpha=0.8, label='Target +0.8%')
-        ax.axvline(-0.8, color='green', linestyle='--', alpha=0.8, label='Target -0.8%')
+        sns.histplot(data=df, x='price_change_ratio', kde=True, ax=ax, alpha=0.7)
+        ax.axvline(df['price_change_ratio'].mean(), color='red', linestyle='--', alpha=0.8, label='Mean')
+        ax.axvline(0.008, color='green', linestyle='--', alpha=0.8, label='Target +80bps')
+        ax.axvline(-0.008, color='green', linestyle='--', alpha=0.8, label='Target -80bps')
         ax.set_title('Price Change Distribution')
         ax.set_xlabel('Price Change (%)')
         ax.legend()
@@ -282,7 +282,7 @@ class RangeBarStatisticalAnalyzer:
         print("\n🧪 Statistical Distribution Tests:")
 
         # Test for normality
-        price_shapiro = stats.shapiro(df['price_change_pct'])
+        price_shapiro = stats.shapiro(df['price_change_ratio'])
         volume_shapiro = stats.shapiro(df['volume'])
 
         print(f"   📊 Price Changes Normality: p={price_shapiro.pvalue:.4f} {'✅ Normal' if price_shapiro.pvalue > 0.05 else '❌ Non-normal'}")
@@ -326,7 +326,7 @@ class RangeBarStatisticalAnalyzer:
         report.append("## Key Statistical Findings")
         report.append("### Price Movement Analysis")
         price = stats['price_movement']
-        report.append(f"- Average price change: {price['mean_change_pct']:.3f}% ± {price['std_change_pct']:.3f}%")
+        report.append(f"- Average price change: {price['mean_change_ratio'] * 100:.3f}% ± {price['std_change_ratio'] * 100:.3f}%")
         report.append(f"- Bullish bias: {price['bullish_ratio']:.1%} of bars")
         report.append(f"- Movement distribution skewness: {price['skewness']:.3f}")
         report.append("")

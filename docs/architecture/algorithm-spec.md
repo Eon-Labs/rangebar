@@ -9,13 +9,14 @@ This specification defines a **non-lookahead bias** range bar construction algor
 ### Mathematical Formulation
 
 Given:
-- `threshold_pct = 0.008` (0.8%)
+- `threshold_bps = 80` (80 basis points = 0.8%)
 - Bar opens at price `P_open`
 
 For each bar:
 ```
-upper_breach = P_open × (1 + threshold_pct) = P_open × 1.008
-lower_breach = P_open × (1 - threshold_pct) = P_open × 0.992
+threshold_ratio = threshold_bps / 10000  # Convert basis points to decimal
+upper_breach = P_open × (1 + threshold_ratio) = P_open × 1.008
+lower_breach = P_open × (1 - threshold_ratio) = P_open × 0.992
 ```
 
 **Bar closes when:** `tick_price >= upper_breach OR tick_price <= lower_breach`
@@ -31,7 +32,8 @@ lower_breach = P_open × (1 - threshold_pct) = P_open × 0.992
 
 ### High-Level Algorithm
 ```python
-def iter_range_bars_from_aggtrades(trades, threshold_pct=0.008):
+def iter_range_bars_from_aggtrades(trades, threshold_bps=80):
+    threshold_ratio = threshold_bps / 10000  # Convert basis points to decimal
     bar = None
     defer_open = False
     
@@ -39,16 +41,16 @@ def iter_range_bars_from_aggtrades(trades, threshold_pct=0.008):
         if defer_open:
             # Previous bar closed, this tick opens new bar
             bar = new_bar(tick)
-            bar.upper_breach = bar.open * (1 + threshold_pct)
-            bar.lower_breach = bar.open * (1 - threshold_pct)
+            bar.upper_breach = bar.open * (1 + threshold_ratio)
+            bar.lower_breach = bar.open * (1 - threshold_ratio)
             defer_open = False
             continue
         
         if bar is None:
             # First bar initialization
             bar = new_bar(tick)
-            bar.upper_breach = bar.open * (1 + threshold_pct) 
-            bar.lower_breach = bar.open * (1 - threshold_pct)
+            bar.upper_breach = bar.open * (1 + threshold_ratio)
+            bar.lower_breach = bar.open * (1 - threshold_ratio)
             continue
         
         # Update bar with current tick (ALWAYS include tick first)

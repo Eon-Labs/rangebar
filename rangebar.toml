@@ -35,14 +35,14 @@ enable_integrity_checks = true
 
 [algorithm]
 # Range bar algorithm configuration
-default_threshold_bps = 25     # 0.25% (25 basis points)
-min_threshold_bps = 1        # 0.01%
-max_threshold_bps = 1000     # 10%
+default_threshold_bps = 25     # 25 basis points
+min_threshold_bps = 1        # 1 basis point
+max_threshold_bps = 1000     # 1000 basis points
 validate_precision = true
 fixed_point_decimals = 8
 validate_non_lookahead = true
 validate_zero_duration = true
-max_zero_duration_percentage = 0.1  # 0.1% of total bars
+max_zero_duration_ratio = 0.1  # 0.1% of total bars
 validate_temporal_integrity = true
 validate_ohlc_consistency = true
 validate_volume_consistency = true
@@ -73,7 +73,7 @@ create_timestamped_dirs = false
 # ============================
 # You can override any configuration value using environment variables with the RANGEBAR_ prefix:
 #
-# export RANGEBAR_ALGORITHM__DEFAULT_THRESHOLD_BPS=25     # 0.25%
+# export RANGEBAR_ALGORITHM__DEFAULT_THRESHOLD_BPS=25     # 25 bps
 # export RANGEBAR_DATA__BASE_URL="https://custom.data.source/"
 # export RANGEBAR_EXPORT__DEFAULT_FORMAT="parquet"
 # export RANGEBAR_APP__DEBUG_MODE=true

@@ -115,8 +115,8 @@ pub struct TemporalCoverage {
     /// Market hours coverage
     pub market_hours: String, // "24/7" for crypto
 
-    /// Actual data coverage (may have gaps)
-    pub coverage_pct: f64,
+    /// Actual data coverage ratio (may have gaps)
+    pub coverage_ratio: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -184,8 +184,8 @@ pub struct AlgorithmConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AlgorithmParameters {
-    /// Range threshold percentage
-    pub threshold_pct: f64,
+    /// Range threshold in basis points
+    pub threshold_bps: u32,
 
     /// Threshold in basis points for precision
     pub threshold_bps: u32,

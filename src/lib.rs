@@ -16,7 +16,7 @@
 //! ```rust
 //! use rangebar::{RangeBarProcessor, AggTrade, FixedPoint};
 //!
-//! // Create processor with 0.25% threshold (250 basis points)
+//! // Create processor with 250 basis points threshold
 //! let mut processor = RangeBarProcessor::new(250);
 //!
 //! // Create sample trade

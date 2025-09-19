@@ -48,8 +48,8 @@ pub async fn generate_range_bars(
 
     let start_time = Instant::now();
 
-    // Convert threshold percentage to basis points for processor
-    let threshold_bp = (request.threshold_pct * 1_000_000.0) as u32;
+    // Use threshold basis points directly from request (no conversion needed)
+    let threshold_bp = request.threshold_bps;
 
     // Create range bar processor
     let mut processor = RangeBarProcessor::new(threshold_bp);
@@ -74,7 +74,7 @@ pub async fn generate_range_bars(
 
     let response = RangeBarsResponse {
         symbol: request.symbol,
-        threshold_pct: request.threshold_pct,
+        threshold_bps: request.threshold_bps,
         bars: range_bars.clone(),
         processing_stats: ProcessingStats {
             trades_processed: request.trades.len() as u64,
@@ -94,9 +94,9 @@ pub struct StreamParams {
     /// Trading symbol
     #[validate(length(min = 3, max = 20))]
     pub symbol: String,
-    /// Threshold percentage
-    #[validate(range(min = 0.0001, max = 0.1))]
-    pub threshold_pct: f64,
+    /// Threshold in basis points
+    #[validate(range(min = 1, max = 10000))]
+    pub threshold_bps: u32,
 }
 
 /// WebSocket streaming endpoint (placeholder)

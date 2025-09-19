@@ -16,10 +16,11 @@ def decode_fixed_point(value, decimals=8):
     """Convert fixed-point integer back to decimal"""
     return Decimal(value) / Decimal(10 ** decimals)
 
-def verify_range_bar_threshold(open_price, close_price, threshold_pct=0.008):
-    """Verify if close price breaches the threshold from open price"""
-    upper_threshold = open_price * (1 + Decimal(threshold_pct))
-    lower_threshold = open_price * (1 - Decimal(threshold_pct))
+def verify_range_bar_threshold(open_price, close_price, threshold_bps=80):
+    """Verify if close price breaches the threshold from open price (threshold in basis points)"""
+    threshold_ratio = Decimal(threshold_bps) / Decimal('10000')
+    upper_threshold = open_price * (1 + threshold_ratio)
+    lower_threshold = open_price * (1 - threshold_ratio)
     
     upper_breach = close_price >= upper_threshold
     lower_breach = close_price <= lower_threshold
@@ -49,10 +50,11 @@ def analyze_range_bars():
         data = json.load(f)
     
     range_bars = data['range_bars']
-    threshold_pct = data['metadata']['algorithm']['parameters']['threshold_pct']
+    threshold_bps = data['metadata']['algorithm']['parameters'].get('threshold_bps',
+                                                                   int(data['metadata']['algorithm']['parameters']['threshold_pct'] * 10000))
     
     print(f"📊 Analyzing {len(range_bars)} range bars")
-    print(f"🎯 Threshold: {threshold_pct:.3f}% = {threshold_pct*100:.1f}%")
+    print(f"🎯 Threshold: {threshold_bps} basis points ({threshold_bps/100:.2f}%)")
     print(f"📈 Total trades processed: {data['metadata']['statistics']['market_data']['total_trades']:,}")
     print()
     
@@ -68,7 +70,7 @@ def analyze_range_bars():
         trade_count = bar['trade_count']
         
         # Verify threshold calculation
-        threshold_check = verify_range_bar_threshold(open_price, close_price, threshold_pct)
+        threshold_check = verify_range_bar_threshold(open_price, close_price, threshold_bps)
         
         # Check OHLCV validity
         ohlcv_valid = (

@@ -93,7 +93,7 @@ impl FixedPoint {
     ///
     /// # Arguments
     ///
-    /// * `threshold_bps` - Threshold value (2500 for 0.25%)
+    /// * `threshold_bps` - Threshold value (25 for 25 bps)
     ///
     /// # Returns
     ///
@@ -219,7 +219,7 @@ mod tests {
     #[test]
     fn test_compute_thresholds() {
         let price = FixedPoint::from_str("50000.0").unwrap();
-        let (upper, lower) = price.compute_range_thresholds(25); // 0.25%
+        let (upper, lower) = price.compute_range_thresholds(25); // 25 bps
 
         // 50000 * 0.0025 = 125
         assert_eq!(upper.to_string(), "50125.00000000");

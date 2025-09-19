@@ -1,6 +1,6 @@
 [package]
 name = "rangebar"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Terry Li <terry@eonlabs.com>"]
 categories = ["algorithms", "data-structures", "finance"]
 documentation = "https://docs.rs/rangebar"
@@ -61,6 +61,10 @@ path = "src/bin/tier1_symbol_discovery.rs"
 [[bin]]
 name = "data-structure-validator"
 path = "src/bin/data_structure_validator.rs"
+
+[[bin]]
+name = "spot-tier1-processor"
+path = "src/bin/spot_tier1_processor.rs"
 
 
 

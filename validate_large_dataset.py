@@ -7,11 +7,11 @@ import json
 import time
 import sys
 
-def validate_large_dataset_integrity(json_file, threshold_pct):
+def validate_large_dataset_integrity(json_file, threshold_bps):
     """Validate algorithm compliance and performance metrics from large dataset"""
     print(f"🚀 Large Dataset Performance & Integrity Validation")
     print(f"📁 File: {json_file}")
-    print(f"📊 Expected threshold: {threshold_pct:.3%}")
+    print(f"📊 Expected threshold: {threshold_bps} bps")
 
     with open(json_file, 'r') as f:
         data = json.load(f)

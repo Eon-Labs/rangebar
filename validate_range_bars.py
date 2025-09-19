@@ -6,10 +6,10 @@ Validate range bar algorithm compliance from generated JSON files
 import json
 import sys
 
-def validate_range_bar_algorithm(json_file, threshold_pct):
+def validate_range_bar_algorithm(json_file, threshold_bps):
     """Validate that range bars comply with the algorithm specification"""
     print(f"🔍 Validating range bars in {json_file}")
-    print(f"📊 Expected threshold: {threshold_pct:.3%}")
+    print(f"📊 Expected threshold: {threshold_bps} bps ({threshold_bps/100:.3}%)")
 
     with open(json_file, 'r') as f:
         data = json.load(f)
@@ -26,9 +26,10 @@ def validate_range_bar_algorithm(json_file, threshold_pct):
         low_price = bar['low'] / 1e8
         close_price = bar['close'] / 1e8
 
-        # Calculate expected thresholds from open price
-        upper_threshold = open_price * (1 + threshold_pct)
-        lower_threshold = open_price * (1 - threshold_pct)
+        # Calculate expected thresholds from open price (convert BPS to decimal ratio)
+        threshold_ratio = threshold_bps / 10000.0
+        upper_threshold = open_price * (1 + threshold_ratio)
+        lower_threshold = open_price * (1 - threshold_ratio)
 
         # Check if high or low breached the thresholds
         high_breach = high_price >= upper_threshold
@@ -103,17 +104,16 @@ def main():
     print("🎯 Range Bar Algorithm Validation Tool")
     print("=====================================")
 
-    # Test both threshold files
+    # Test edge case with different threshold
     files_to_test = [
-        ('./output/adversarial_test/um_BTCUSDT_rangebar_20250915_20250915_0.250pct.json', 0.0025),
-        ('./output/adversarial_test/um_BTCUSDT_rangebar_20250915_20250915_0.300pct.json', 0.003)
+        ('./output/edge_case_test/spot_BTCUSDT_rangebar_20241030_20241031_0050bps.json', 50),  # 0.5% = 50 bps
     ]
 
     all_valid = True
 
-    for json_file, threshold_pct in files_to_test:
+    for json_file, threshold_bps in files_to_test:
         try:
-            is_valid = validate_range_bar_algorithm(json_file, threshold_pct)
+            is_valid = validate_range_bar_algorithm(json_file, threshold_bps)
             all_valid = all_valid and is_valid
             print()
         except FileNotFoundError:

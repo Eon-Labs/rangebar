@@ -1,7 +1,7 @@
 //! Core range bar processing algorithm
 //!
 //! Implements non-lookahead bias range bar construction where bars close when
-//! price moves ±threshold% from the bar's OPEN price.
+//! price moves ±threshold bps from the bar's OPEN price.
 
 use crate::fixed_point::FixedPoint;
 use crate::types::{AggTrade, RangeBar};
@@ -11,7 +11,7 @@ use thiserror::Error;
 
 /// Range bar processor with non-lookahead bias guarantee
 pub struct RangeBarProcessor {
-    /// Threshold in basis points (25 = 0.25%)
+    /// Threshold in basis points (25 = 25 bps)
     threshold_bps: u32,
 }
 
@@ -20,7 +20,7 @@ impl RangeBarProcessor {
     ///
     /// # Arguments
     ///
-    /// * `threshold_bps` - Threshold value (25 for 0.25%)
+    /// * `threshold_bps` - Threshold value (25 for 25 bps)
     pub fn new(threshold_bps: u32) -> Self {
         Self { threshold_bps }
     }
@@ -289,12 +289,12 @@ mod tests {
 
     #[test]
     fn test_single_bar_no_breach() {
-        let mut processor = RangeBarProcessor::new(25); // 0.25%
+        let mut processor = RangeBarProcessor::new(25); // 25 bps
 
         let trades = vec![
             create_test_trade(1, "50000.0", "1.0", 1000),
-            create_test_trade(2, "50100.0", "1.5", 2000), // +0.2%
-            create_test_trade(3, "49900.0", "2.0", 3000), // -0.2%
+            create_test_trade(2, "50100.0", "1.5", 2000), // +20 bps
+            create_test_trade(3, "49900.0", "2.0", 3000), // -20 bps
         ];
 
         // Test strict algorithm compliance: no bars should be created without breach
@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn test_exact_breach_upward() {
-        let mut processor = RangeBarProcessor::new(25); // 0.25%
+        let mut processor = RangeBarProcessor::new(25); // 25 bps
 
         let trades = vec![
             create_test_trade(1, "50000.0", "1.0", 1000), // Open

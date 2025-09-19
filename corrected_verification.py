@@ -8,13 +8,14 @@ from decimal import Decimal, getcontext
 
 getcontext().prec = 28
 
-def corrected_breach_check(open_price, high_price, low_price, close_price, threshold_pct=Decimal('0.008')):
+def corrected_breach_check(open_price, high_price, low_price, close_price, threshold_bps=Decimal('80')):
     """
     Corrected breach detection logic.
     Range bars should close when HIGH >= upper_threshold OR LOW <= lower_threshold
     """
-    upper_threshold = open_price * (Decimal('1') + threshold_pct)
-    lower_threshold = open_price * (Decimal('1') - threshold_pct)
+    threshold_ratio = threshold_bps / Decimal('10000')  # Convert bps to ratio
+    upper_threshold = open_price * (Decimal('1') + threshold_ratio)
+    lower_threshold = open_price * (Decimal('1') - threshold_ratio)
     
     # CORRECT: Check if HIGH reached upper OR LOW reached lower threshold
     upper_breach = high_price >= upper_threshold

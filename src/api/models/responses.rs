@@ -40,8 +40,8 @@ pub struct Tier1SymbolsResponse {
 pub struct RangeBarsResponse {
     /// Trading symbol
     pub symbol: String,
-    /// Threshold percentage used
-    pub threshold_pct: f64,
+    /// Threshold in basis points used
+    pub threshold_bps: u32,
     /// Generated range bars
     pub bars: Vec<RangeBar>,
     /// Processing statistics

@@ -12,7 +12,7 @@ info:
     - 🔧 **Pure Rust** implementation with streaming capabilities
 
     ## Range Bar Algorithm
-    Range bars close when price moves ±threshold% from the bar's **opening price**.
+    Range bars close when price moves ±threshold basis points from the bar's **opening price**.
     Non-lookahead bias ensures thresholds are computed only from prior state.
   version: 0.5.0
   contact:
@@ -114,15 +114,14 @@ paths:
           schema:
             type: string
             example: "BTCUSDT"
-        - name: threshold_pct
+        - name: threshold_bps
           in: query
           required: true
           schema:
-            type: number
-            format: float
-            minimum: 0.0001
-            maximum: 0.1
-            example: 0.008
+            type: integer
+            minimum: 1
+            maximum: 10000
+            example: 80
       responses:
         '101':
           description: WebSocket connection established
@@ -195,12 +194,13 @@ paths:
           schema:
             type: string
             format: date
-        - name: threshold_pct
+        - name: threshold_bps
           in: query
           required: true
           schema:
-            type: number
-            format: float
+            type: integer
+            minimum: 1
+            maximum: 10000
       responses:
         '200':
           description: Export successful
@@ -356,19 +356,17 @@ components:
       type: object
       required:
         - symbol
-        - threshold_pct
+        - threshold_bps
         - trades
       properties:
         symbol:
           type: string
           example: "BTCUSDT"
-        threshold_pct:
-          type: number
-          format: float
-          minimum: 0.0001
-          maximum: 0.1
-          example: 0.008
-          description: Range threshold as percentage (0.008 = 0.8%)
+        threshold_bps:
+          type: integer
+          minimum: 1
+          maximum: 10000
+          description: Range threshold in basis points (80 = 0.8%)
         trades:
           type: array
           items:
@@ -380,15 +378,16 @@ components:
       type: object
       required:
         - symbol
-        - threshold_pct
+        - threshold_bps
         - bars
         - processing_stats
       properties:
         symbol:
           type: string
-        threshold_pct:
-          type: number
-          format: float
+        threshold_bps:
+          type: integer
+          minimum: 1
+          maximum: 10000
         bars:
           type: array
           items:
@@ -477,7 +476,7 @@ components:
           example: "INVALID_THRESHOLD"
         message:
           type: string
-          example: "Threshold percentage must be between 0.01% and 10%"
+          example: "Threshold must be between 1 and 1000 basis points"
         details:
           type: object
           description: Additional error context

@@ -20,8 +20,8 @@ rangebar = "0.5"
 ```rust
 use rangebar::{RangeBarProcessor, AggTrade, FixedPoint};
 
-// Create processor with 0.25% threshold (250 basis points)
-let mut processor = RangeBarProcessor::new(250);
+// Create processor with 25 basis points threshold
+let mut processor = RangeBarProcessor::new(25);
 
 // Create sample trade
 let trade = AggTrade {
@@ -46,7 +46,7 @@ for bar in bars {
 
 ## Algorithm
 
-Range bars close when price moves ±threshold% from the bar's **opening price**:
+Range bars close when price moves ±threshold basis points from the bar's **opening price**:
 
 1. **Non-lookahead bias**: Thresholds computed only from bar open price
 2. **Breach inclusion**: Breaching trade included in closing bar

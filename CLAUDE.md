@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Non-lookahead bias range bar construction from Binance UM Futures aggTrades data.
 
-**Core Algorithm**: Range bars close when price moves ±0.8% from the bar's OPEN price (not from high/low range).
+**Core Algorithm**: Range bars close when price moves ±threshold basis points from the bar's OPEN price (not from high/low range).
 
 **Architecture**: Pure Rust implementation for performance and reliability (processes 1B+ ticks). All components native Rust: symbol discovery, data processing, and analysis.
 
@@ -114,7 +114,7 @@ lower_breach = bar_open * 0.992
 
 ### Bar Construction Sequence
 1. Bar opens at tick price
-2. Compute fixed thresholds from open: `±0.8%`
+2. Compute fixed thresholds from open: `±threshold_bps basis points`
 3. For each subsequent tick:
    - Update `high` = max(high, tick_price)
    - Update `low` = min(low, tick_price) 

@@ -19,7 +19,8 @@ def debug_bar7_breach():
     
     # Focus on Bar 7 (index 6)
     bar7 = data['range_bars'][6]
-    threshold_pct = Decimal('0.008')
+    threshold_bps = Decimal('80')  # 80 basis points
+    threshold_ratio = threshold_bps / Decimal('10000')  # Convert to decimal ratio
     
     print("📊 Bar 7 Raw Data:")
     for key, value in bar7.items():
@@ -53,12 +54,12 @@ def debug_bar7_breach():
     print()
     
     # Calculate thresholds with high precision
-    upper_threshold = open_price * (Decimal('1') + threshold_pct)
-    lower_threshold = open_price * (Decimal('1') - threshold_pct)
+    upper_threshold = open_price * (Decimal('1') + threshold_ratio)
+    lower_threshold = open_price * (Decimal('1') - threshold_ratio)
     
     print(f"📊 Threshold Calculations:")
     print(f"   Open price: {open_price}")
-    print(f"   Threshold %: {threshold_pct} = {threshold_pct * 100}%")
+    print(f"   Threshold: {threshold_bps} bps = {threshold_ratio * 100}%")
     print(f"   Upper threshold: {upper_threshold}")
     print(f"   Lower threshold: {lower_threshold}")
     print()

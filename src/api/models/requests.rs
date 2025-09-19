@@ -18,9 +18,9 @@ pub struct GenerateRangeBarsRequest {
     #[validate(length(min = 3, max = 20))]
     pub symbol: String,
 
-    /// Range threshold as percentage (0.008 = 0.8%)
-    #[validate(range(min = 0.0001, max = 0.1))]
-    pub threshold_pct: f64,
+    /// Range threshold in basis points (80 = 0.8%)
+    #[validate(range(min = 1, max = 10000))]
+    pub threshold_bps: u32,
 
     /// Aggregated trades to process
     #[validate(length(min = 1, max = 1000000))]

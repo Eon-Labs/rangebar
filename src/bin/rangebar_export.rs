@@ -232,8 +232,9 @@ impl ExportRangeBarProcessor {
         let price_val = trade.price.0;
         let bar_open_val = bar.open.0;
         let threshold_bps = self.threshold_bps as i64;
-        let upper_threshold = bar_open_val + (bar_open_val * threshold_bps) / 1_000_000;
-        let lower_threshold = bar_open_val - (bar_open_val * threshold_bps) / 1_000_000;
+        // CORRECTED: Use BASIS_POINTS_SCALE (10,000) not 1,000,000
+        let upper_threshold = bar_open_val + (bar_open_val * threshold_bps) / 10_000;
+        let lower_threshold = bar_open_val - (bar_open_val * threshold_bps) / 10_000;
 
         // Update bar with new trade - avoid cloning
         bar.close_time = trade.timestamp;
@@ -436,10 +437,11 @@ impl ExportRangeBarProcessor {
         // Check for breach - convert fixed-point to f64 first
         let open_price = bar.open.to_f64();
         let current_price = trade.price.to_f64();
-        let threshold_pct = self.threshold_bps as f64 / 1_000_000.0;
+        // Convert basis points to decimal ratio (10,000 basis points = 100%)
+        let threshold_ratio = self.threshold_bps as f64 / 10_000.0;
 
-        let upper_threshold = open_price * (1.0 + threshold_pct);
-        let lower_threshold = open_price * (1.0 - threshold_pct);
+        let upper_threshold = open_price * (1.0 + threshold_ratio);
+        let lower_threshold = open_price * (1.0 - threshold_ratio);
 
         if current_price >= upper_threshold || current_price <= lower_threshold {
             // Bar is complete - convert to export format
@@ -549,7 +551,7 @@ impl ExportRangeBarProcessor {
 #[derive(Debug, Serialize)]
 struct ExportResult {
     symbol: String,
-    threshold_pct: f64,
+    threshold_bps: u32,
     date_range: (String, String),
     total_bars: usize,
     total_trades: u64,
@@ -650,10 +652,11 @@ impl RangeBarExporter {
         symbol: &str,
         start_date: NaiveDate,
         end_date: NaiveDate,
-        threshold_pct: f64,
+        threshold_bps: u32,
     ) -> Result<EnhancedExportResult, Box<dyn std::error::Error + Send + Sync>> {
         let start_time = std::time::Instant::now();
-        let mut processor = ExportRangeBarProcessor::new((threshold_pct * 1_000_000.0) as u32);
+        // Use threshold basis points directly (no conversion needed)
+        let mut processor = ExportRangeBarProcessor::new(threshold_bps);
         let mut all_range_bars: Vec<RangeBar> = Vec::new(); // Unified boundary-safe processing
         let mut total_trades = 0u64;
         let mut current_date = start_date;
@@ -671,7 +674,11 @@ impl RangeBarExporter {
         println!("====================");
         println!("📊 Symbol: {}", symbol);
         println!("📅 Date Range: {} to {}", start_date, end_date);
-        println!("📈 Threshold: {}%", threshold_pct * 100.0);
+        println!(
+            "📈 Threshold: {} bps ({}%)",
+            threshold_bps,
+            threshold_bps as f64 / 100.0
+        );
         println!("📁 Output: {}/", self.output_dir);
 
         // PHASE 1: Process days continuously using boundary-safe mode for deterministic results
@@ -736,27 +743,20 @@ impl RangeBarExporter {
             start_date.format("%Y%m%d"),
             end_date.format("%Y%m%d")
         );
+        // threshold_bps already available as parameter
         let csv_filename = format!(
-            "{}{}_rangebar_{}_{:.3}pct.csv",
-            if self.market_type == "spot" {
-                ""
-            } else {
-                &format!("{}_", self.market_type)
-            },
+            "{}_{}_rangebar_{}_{:04}bps.csv",
+            self.market_type, // Always include market type
             symbol,
             date_str,
-            threshold_pct * 100.0
+            threshold_bps
         );
         let json_filename = format!(
-            "{}{}_rangebar_{}_{:.3}pct.json",
-            if self.market_type == "spot" {
-                ""
-            } else {
-                &format!("{}_", self.market_type)
-            },
+            "{}_{}_rangebar_{}_{:04}bps.json",
+            self.market_type, // Always include market type
             symbol,
             date_str,
-            threshold_pct * 100.0
+            threshold_bps
         );
 
         self.export_to_csv(&all_range_bars, &csv_filename)?;
@@ -769,7 +769,7 @@ impl RangeBarExporter {
         //         &Vec::new(), // Empty trades - unified algorithm processes day-by-day
         //         &all_range_bars,
         //         symbol,
-        //         threshold_pct,
+        //         threshold_bps,
         //         &start_date.format("%Y-%m-%d").to_string(),
         //         &end_date.format("%Y-%m-%d").to_string(),
         //     );
@@ -796,7 +796,7 @@ impl RangeBarExporter {
 
         let basic_result = ExportResult {
             symbol: symbol.to_string(),
-            threshold_pct,
+            threshold_bps,
             date_range: (
                 start_date.format("%Y-%m-%d").to_string(),
                 end_date.format("%Y-%m-%d").to_string(),
@@ -1230,21 +1230,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 6 || args.len() > 7 {
         eprintln!(
-            "Usage: {} <symbol> <start_date> <end_date> <threshold_pct> <output_dir> [market_type]",
+            "Usage: {} <symbol> <start_date> <end_date> <threshold_bps> <output_dir> [market_type]",
             args[0]
         );
         eprintln!("Market types: spot (default), um (UM Futures)");
+        eprintln!("Threshold: basis points (25 = 0.25%, 80 = 0.80%)");
         eprintln!("Examples:");
         eprintln!(
-            "  {} BTCUSDT 2025-09-01 2025-09-09 0.0025 ./output           # SPOT (default)",
+            "  {} BTCUSDT 2025-09-01 2025-09-09 25 ./output           # SPOT (default), 0.25%",
             args[0]
         );
         eprintln!(
-            "  {} BTCUSDT 2025-09-01 2025-09-09 0.0025 ./output spot      # SPOT (explicit)",
+            "  {} BTCUSDT 2025-09-01 2025-09-09 80 ./output spot      # SPOT (explicit), 0.80%",
             args[0]
         );
         eprintln!(
-            "  {} BTCUSDT 2025-09-01 2025-09-09 0.0025 ./output um        # UM Futures",
+            "  {} BTCUSDT 2025-09-01 2025-09-09 25 ./output um        # UM Futures, 0.25%",
             args[0]
         );
         std::process::exit(1);
@@ -1256,7 +1257,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let symbol = &args[1];
     let start_date = NaiveDate::parse_from_str(&args[2], "%Y-%m-%d")?;
     let end_date = NaiveDate::parse_from_str(&args[3], "%Y-%m-%d")?;
-    let threshold_pct: f64 = args[4].parse()?;
+    let threshold_bps: u32 = args[4].parse()?;
     let output_dir = args[5].clone();
 
     // Default to "spot", optional "um" for UM Futures
@@ -1277,7 +1278,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let exporter = RangeBarExporter::new(output_dir, market_type)?;
     let result = exporter
-        .export_symbol_range_bars(symbol, start_date, end_date, threshold_pct)
+        .export_symbol_range_bars(symbol, start_date, end_date, threshold_bps)
         .await
         .map_err(|e| -> Box<dyn std::error::Error> {
             Box::new(std::io::Error::other(e.to_string()))
