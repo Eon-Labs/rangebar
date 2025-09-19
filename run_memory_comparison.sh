@@ -34,7 +34,7 @@ echo ""
 echo "🧪 Running cross-year speed comparison test..."
 echo "📊 This will compare:"
 echo "  1. Batch processing (ExportRangeBarProcessor)"
-echo "  2. Streaming V2 (ProductionStreamingProcessor - bounded memory)"
+echo "  2. Streaming V2 (StreamingProcessor - bounded memory)"
 echo ""
 
 # Run with detailed output

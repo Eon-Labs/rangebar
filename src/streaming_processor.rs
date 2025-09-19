@@ -17,7 +17,7 @@ use tokio::time::{Duration, Instant};
 
 /// Configuration for production streaming
 #[derive(Debug, Clone)]
-pub struct StreamingConfig {
+pub struct StreamingProcessorConfig {
     /// Channel capacity for trade input
     pub trade_channel_capacity: usize,
     /// Channel capacity for completed bars
@@ -32,7 +32,7 @@ pub struct StreamingConfig {
     pub circuit_breaker_timeout: Duration,
 }
 
-impl Default for StreamingConfig {
+impl Default for StreamingProcessorConfig {
     fn default() -> Self {
         Self {
             trade_channel_capacity: 5_000,       // Based on consensus analysis
@@ -46,7 +46,7 @@ impl Default for StreamingConfig {
 }
 
 /// Production streaming processor with bounded memory
-pub struct ProductionStreamingProcessor {
+pub struct StreamingProcessor {
     /// Range bar processor (single instance, no accumulation)
     processor: ExportRangeBarProcessor,
 
@@ -63,7 +63,7 @@ pub struct ProductionStreamingProcessor {
     bar_receiver: Option<mpsc::Receiver<RangeBar>>,
 
     /// Configuration
-    config: StreamingConfig,
+    config: StreamingProcessorConfig,
 
     /// Metrics
     metrics: Arc<StreamingMetrics>,
@@ -101,14 +101,14 @@ pub struct StreamingMetrics {
     pub memory_usage_bytes: AtomicU64,
 }
 
-impl ProductionStreamingProcessor {
+impl StreamingProcessor {
     /// Create new production streaming processor
     pub fn new(threshold_bps: u32) -> Self {
-        Self::with_config(threshold_bps, StreamingConfig::default())
+        Self::with_config(threshold_bps, StreamingProcessorConfig::default())
     }
 
     /// Create with custom configuration
-    pub fn with_config(threshold_bps: u32, config: StreamingConfig) -> Self {
+    pub fn with_config(threshold_bps: u32, config: StreamingProcessorConfig) -> Self {
         let (trade_sender, trade_receiver) = mpsc::channel(config.trade_channel_capacity);
         let (bar_sender, bar_receiver) = mpsc::channel(config.bar_channel_capacity);
 
@@ -441,7 +441,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_bounded_memory_streaming() {
-        let mut processor = ProductionStreamingProcessor::new(25); // 0.25% threshold
+        let mut processor = StreamingProcessor::new(25); // 0.25% threshold
 
         // Test that memory remains bounded
         let initial_metrics = processor.metrics().summary();

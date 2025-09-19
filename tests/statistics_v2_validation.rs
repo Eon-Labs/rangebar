@@ -1,7 +1,7 @@
 #[cfg(feature = "streaming-stats")]
 use rangebar::fixed_point::FixedPoint;
 #[cfg(feature = "streaming-stats")]
-use rangebar::statistics_v2::StreamingStatsEngine;
+use rangebar::statistics::StreamingStatsEngine;
 #[cfg(feature = "streaming-stats")]
 use rangebar::types::{AggTrade, RangeBar};
 

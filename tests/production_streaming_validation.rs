@@ -6,7 +6,7 @@ use rangebar::fixed_point::FixedPoint;
 /// - Backpressure mechanisms preventing OOM
 /// - Circuit breaker resilience patterns
 /// - Single-bar streaming (no Vec<RangeBar> accumulation)
-use rangebar::streaming_v2::{ProductionStreamingProcessor, StreamingConfig};
+use rangebar::streaming_processor::{StreamingProcessor, StreamingProcessorConfig};
 use rangebar::types::{AggTrade, RangeBar};
 use std::time::{Duration, Instant};
 use tokio::time::timeout;
@@ -16,14 +16,14 @@ use tokio::time::timeout;
 async fn test_bounded_memory_infinite_stream() {
     println!("🔍 Testing bounded memory for infinite streaming");
 
-    let config = StreamingConfig {
+    let config = StreamingProcessorConfig {
         trade_channel_capacity: 1000,
         bar_channel_capacity: 100,
         memory_threshold_bytes: 50_000_000, // 50MB limit
         ..Default::default()
     };
 
-    let mut processor = ProductionStreamingProcessor::with_config(25, config);
+    let mut processor = StreamingProcessor::with_config(25, config);
 
     // Get channels for infinite streaming
     let trade_sender = processor.trade_sender().expect("Should have trade sender");
@@ -83,14 +83,14 @@ async fn test_bounded_memory_infinite_stream() {
 async fn test_backpressure_prevents_oom() {
     println!("🔍 Testing backpressure mechanisms");
 
-    let config = StreamingConfig {
+    let config = StreamingProcessorConfig {
         trade_channel_capacity: 10, // Very small capacity
         bar_channel_capacity: 5,    // Very small capacity
         backpressure_timeout: Duration::from_millis(10),
         ..Default::default()
     };
 
-    let mut processor = ProductionStreamingProcessor::with_config(25, config);
+    let mut processor = StreamingProcessor::with_config(25, config);
     let trade_sender = processor.trade_sender().expect("Should have trade sender");
     let bar_receiver = processor.bar_receiver().expect("Should have bar receiver");
 
@@ -167,8 +167,8 @@ async fn test_memory_comparison_old_vs_new() {
     // Test new implementation - bounded memory
     let start_memory = get_current_memory_kb();
 
-    let config = StreamingConfig::default();
-    let mut processor = ProductionStreamingProcessor::with_config(25, config);
+    let config = StreamingProcessorConfig::default();
+    let mut processor = StreamingProcessor::with_config(25, config);
 
     let trade_sender = processor.trade_sender().unwrap();
     let mut bar_receiver = processor.bar_receiver().unwrap();
@@ -232,13 +232,13 @@ async fn test_memory_comparison_old_vs_new() {
 async fn test_circuit_breaker_protection() {
     println!("🔍 Testing circuit breaker protection");
 
-    let config = StreamingConfig {
+    let config = StreamingProcessorConfig {
         circuit_breaker_threshold: 0.5, // 50% failure rate
         circuit_breaker_timeout: Duration::from_millis(100),
         ..Default::default()
     };
 
-    let processor = ProductionStreamingProcessor::with_config(25, config);
+    let processor = StreamingProcessor::with_config(25, config);
     let initial_metrics = processor.metrics().summary();
 
     println!("  📊 Initial circuit breaker state: Closed");
@@ -379,7 +379,7 @@ async fn test_architecture_fixes_critical_failures() {
     println!("   - New: Exponential backoff and graceful degradation");
 
     // Create production streaming processor
-    let mut processor = ProductionStreamingProcessor::new(25);
+    let mut processor = StreamingProcessor::new(25);
     let initial_metrics = processor.metrics().summary();
 
     println!("\n📊 Production V2 Architecture Initialized:");

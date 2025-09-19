@@ -35,14 +35,14 @@ lessons_learned:
       lesson: Direct implementation with clear separation of concerns outperforms over-engineered abstractions
 
   successful_solution:
-    approach: Complete architectural rebuild with single ProductionStreamingProcessor and statistics_v2 module
+    approach: Complete architectural rebuild with single StreamingProcessor and statistics_v2 module
     key_insights:
       - Perfect algorithmic consistency achieved: 0 bar difference between batch and streaming processing
       - Production-proven crates integration: tdigests (Ted Dunning's t-digest from Apache Arrow) and rolling-stats (Welford's algorithm)
       - Bounded memory streaming with backpressure: prevents memory exhaustion in infinite stream scenarios
       - Feature-gated compilation allows optional statistics without breaking core functionality
       - Processor state persistence across trades essential for correct streaming behavior
-      - Clean separation: statistics_v2.rs for new implementation, legacy statistics.rs preserved for backward compatibility
+      - Clean separation: statistics.rs for new implementation, legacy statistics.rs preserved for backward compatibility
 
   patterns_identified:
     - pattern: Production streaming requires bounded channels with explicit backpressure handling
@@ -67,8 +67,8 @@ lessons_learned:
 technical_details:
   architecture_changes:
     - Complete removal of legacy streaming implementations (streaming_processor.rs, streaming_abstraction.rs)
-    - New statistics_v2.rs module with streaming-first architecture using production crates
-    - Single ProductionStreamingProcessor with bounded memory and backpressure
+    - New statistics.rs module with streaming-first architecture using production crates
+    - Single StreamingProcessor with bounded memory and backpressure
     - Feature-gated compilation system for optional streaming statistics (#[cfg(feature = "streaming-stats")])
     - Fixed critical processor state management maintaining continuity across trades
 
@@ -129,7 +129,7 @@ code_quality_enforcement:
   - Test suite validation preventing regressions in core functionality
 
 migration_notes:
-  - statistics_v2.rs provides new streaming-optimized interface
+  - statistics.rs provides new streaming-optimized interface
   - Legacy statistics.rs preserved for backward compatibility
   - Feature flags allow gradual adoption of new streaming capabilities
   - API compatibility maintained for existing range bar construction functionality

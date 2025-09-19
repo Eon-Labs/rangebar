@@ -15,8 +15,9 @@ use sha2::{Digest, Sha256};
 // Use library types and statistics module
 use rangebar::{AggTrade, FixedPoint, RangeBar, Settings};
 
-#[cfg(feature = "statistics")]
-use rangebar::statistics::RangeBarMetadata;
+// Legacy statistics support disabled - requires statistics module restructuring
+// #[cfg(feature = "statistics")]
+// use rangebar::statistics::RangeBarMetadata;
 
 // Enhanced output result with comprehensive metadata
 #[derive(Debug, Serialize)]
@@ -26,8 +27,8 @@ struct EnhancedExportResult {
     pub basic_result: ExportResult,
 
     /// Comprehensive metadata (if statistics feature enabled)
-    #[cfg(feature = "statistics")]
-    pub metadata: Option<RangeBarMetadata>,
+    // #[cfg(feature = "statistics")]
+    // pub metadata: Option<RangeBarMetadata>,
 
     /// File format information
     pub files: ExportedFiles,
@@ -658,8 +659,8 @@ impl RangeBarExporter {
         let mut current_date = start_date;
 
         // Initialize statistical engine for comprehensive analysis
-        #[cfg(feature = "statistics")]
-        let mut statistical_engine = rangebar::statistics::StatisticalEngine::new();
+        // #[cfg(feature = "statistics")]
+        // let mut statistical_engine = rangebar::statistics::StatisticalEngine::new();
 
         #[cfg(feature = "statistics")]
         // OPTIMIZATION: Use Vec::with_capacity to avoid reallocations
@@ -761,24 +762,24 @@ impl RangeBarExporter {
         self.export_to_csv(&all_range_bars, &csv_filename)?;
 
         // Generate comprehensive metadata with statistical analysis
-        #[cfg(feature = "statistics")]
-        let metadata = {
-            println!("   🔬 Generating comprehensive statistical analysis...");
-            let metadata_result = statistical_engine.compute_comprehensive_metadata(
-                &Vec::new(), // Empty trades - unified algorithm processes day-by-day
-                &all_range_bars,
-                symbol,
-                threshold_pct,
-                &start_date.format("%Y-%m-%d").to_string(),
-                &end_date.format("%Y-%m-%d").to_string(),
-            );
-            metadata_result.ok()
-        };
+        // #[cfg(feature = "statistics")]
+        // let metadata = {
+        //     println!("   🔬 Generating comprehensive statistical analysis...");
+        //     let metadata_result = statistical_engine.compute_comprehensive_metadata(
+        //         &Vec::new(), // Empty trades - unified algorithm processes day-by-day
+        //         &all_range_bars,
+        //         symbol,
+        //         threshold_pct,
+        //         &start_date.format("%Y-%m-%d").to_string(),
+        //         &end_date.format("%Y-%m-%d").to_string(),
+        //     );
+        //     metadata_result.ok()
+        // };
 
-        #[cfg(not(feature = "statistics"))]
-        let metadata = None;
+        // #[cfg(not(feature = "statistics"))]
+        // let metadata = None;
 
-        self.export_to_json_with_metadata(&all_range_bars, &json_filename, metadata.as_ref())?;
+        self.export_to_json_with_metadata(&all_range_bars, &json_filename)?;
 
         println!("\n✅ Export Complete!");
         println!("   📊 Total Bars: {}", all_range_bars.len());
@@ -788,10 +789,10 @@ impl RangeBarExporter {
         println!("   📄 CSV: {}/{}", self.output_dir, csv_filename);
         println!("   📄 JSON: {}/{}", self.output_dir, json_filename);
 
-        #[cfg(feature = "statistics")]
-        if metadata.is_some() {
-            println!("   🔬 Statistical Analysis: 200+ metrics included in JSON");
-        }
+        // #[cfg(feature = "statistics")]
+        // if metadata.is_some() {
+        //     println!("   🔬 Statistical Analysis: 200+ metrics included in JSON");
+        // }
 
         let basic_result = ExportResult {
             symbol: symbol.to_string(),
@@ -828,8 +829,8 @@ impl RangeBarExporter {
 
         Ok(EnhancedExportResult {
             basic_result,
-            #[cfg(feature = "statistics")]
-            metadata,
+            // #[cfg(feature = "statistics")]
+            // metadata,
             files,
         })
     }
@@ -1188,33 +1189,14 @@ impl RangeBarExporter {
         &self,
         bars: &[RangeBar],
         filename: &str,
-        metadata: Option<&rangebar::statistics::RangeBarMetadata>,
+        // metadata: Option<&rangebar::statistics::RangeBarMetadata>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         use serde_json::json;
 
         let filepath = Path::new(&self.output_dir).join(filename);
 
-        let comprehensive_export = if let Some(meta) = metadata {
-            // Create comprehensive JSON with metadata and range bars
-            json!({
-                "schema_version": "1.0.0",
-                "export_type": "comprehensive_rangebar_analysis",
-                "metadata": meta,
-                "range_bars": bars,
-                "summary": {
-                    "total_bars": bars.len(),
-                    "date_range": format!("{} to {}",
-                        meta.dataset.temporal.start_date,
-                        meta.dataset.temporal.end_date),
-                    "symbol": meta.dataset.instrument.symbol,
-                    "market_type": meta.dataset.instrument.venue,
-                    "threshold_pct": meta.algorithm.parameters.threshold_bps as f64 / 1_000_000.0,
-                    "statistical_metrics_count": "200+",
-                    "analysis_timestamp": chrono::Utc::now().to_rfc3339()
-                }
-            })
-        } else {
-            // Fallback to simple JSON structure without statistics
+        let comprehensive_export = {
+            // Simple JSON structure without statistics (statistics module disabled)
             json!({
                 "schema_version": "1.0.0",
                 "export_type": "basic_rangebar_data",

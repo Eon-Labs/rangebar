@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Legacy dual-run validation test from `production_streaming_validation.rs`
 
 ### Changed
-- Architecture consolidation: Batch (`ExportRangeBarProcessor`) + Production V2 (`ProductionStreamingProcessor`)
+- Architecture consolidation: Batch (`ExportRangeBarProcessor`) + Production V2 (`StreamingProcessor`)
 - Cross-year performance test updated for batch vs V2 comparison only
 - Memory comparison demo simplified to batch processing demonstration
 - Build and test infrastructure updated for simplified architecture

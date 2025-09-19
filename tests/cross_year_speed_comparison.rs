@@ -10,7 +10,7 @@ use rangebar::types::AggTrade;
 use std::time::Instant;
 
 #[cfg(feature = "streaming-v2")]
-use rangebar::streaming_v2::{ProductionStreamingProcessor, StreamingConfig};
+use rangebar::streaming_processor::{StreamingProcessor, StreamingProcessorConfig};
 use tokio::runtime::Runtime;
 
 /// Performance metrics for cross-year comparison
@@ -225,14 +225,14 @@ fn benchmark_streaming_v2_processing(trades: &[AggTrade], threshold_bps: u32) ->
     let start_time = Instant::now();
 
     let bar_count = rt.block_on(async {
-        let config = StreamingConfig {
+        let config = StreamingProcessorConfig {
             trade_channel_capacity: 10000,
             bar_channel_capacity: 1000,
             memory_threshold_bytes: 100_000_000, // 100MB
             ..Default::default()
         };
 
-        let mut processor = ProductionStreamingProcessor::with_config(threshold_bps, config);
+        let mut processor = StreamingProcessor::with_config(threshold_bps, config);
 
         // Get channels for streaming
         let trade_sender = processor.trade_sender().expect("Should have trade sender");
